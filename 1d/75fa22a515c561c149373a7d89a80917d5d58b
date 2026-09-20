@@ -1,0 +1,44 @@
+ai2ai/cli.py
+  s_3c96701c12f1de::t_406740b3c6d27d 8
+Personal-Agent-Collaboration-一期方案-精简版.md
+  s_3c96701c12f1de::t_406740b3c6d27d 7-8
+Dockerfile
+  s_3c96701c12f1de::t_4e1cb0410b5f27 4-6
+README.md
+  s_3c96701c12f1de::t_4cab51aea4cfd8 17
+  s_3c96701c12f1de::t_cd8f0308559795 1-16,18-145
+tests/test_connector.py
+  s_3c96701c12f1de::t_4e1cb0410b5f27 12,38-59
+  s_3c96701c12f1de::t_5b7ab0122d7ee7 1-11,13-37,60-118
+deploy/Caddyfile.example
+  s_3c96701c12f1de::t_cd8f0308559795 2-4
+ai2ai/hub.py
+  s_3c96701c12f1de::t_406740b3c6d27d 22-25
+requirements.lock
+  s_3c96701c12f1de::t_99b5a57fafe983 1-49
+ai2ai/connector.py
+  s_3c96701c12f1de::t_cd8f0308559795 126-134
+deploy/codex.Dockerfile
+  s_3c96701c12f1de::t_4cab51aea4cfd8 6
+tests/test_hub.py
+  s_3c96701c12f1de::t_5b7ab0122d7ee7 1-143
+pyproject.toml
+  s_3c96701c12f1de::t_4cab51aea4cfd8 9
+  s_3c96701c12f1de::t_cd8f0308559795 21-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "1d75fa22a515c561c149373a7d89a80917d5d58b",
+  "prompts": {},
+  "sessions": {
+    "s_3c96701c12f1de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bd74-883d-7242-97a4-25b13e9d47a0",
+        "model": "GPT-6-Astra-joybuilder"
+      },
+      "human_author": "yujunjie.50 <yujunjie.50@jd.com>"
+    }
+  }
+}
