@@ -1,0 +1,11 @@
+collaboration.example.com {
+    request_body {
+        max_size 1MB
+    }
+    reverse_proxy 127.0.0.1:8000
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+        X-Frame-Options DENY
+    }
+}

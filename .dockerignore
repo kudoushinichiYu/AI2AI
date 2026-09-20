@@ -1,0 +1,9 @@
+.git
+.venv
+.ai2ai
+__pycache__
+*.egg-info
+.env
+tests
+dist
+build
