@@ -1,0 +1,50 @@
+peerlink/hub.py
+  s_3c96701c12f1de::t_0f851657d055d0 101-102
+tests/test_hub.py
+  s_3c96701c12f1de::t_0f851657d055d0 7
+pyproject.toml
+  s_3c96701c12f1de::t_0f851657d055d0 6,16,19,22
+Peerlink-一期方案-精简版.md
+  s_3c96701c12f1de::t_0f851657d055d0 1
+skills/peerlink/SKILL.md
+  s_3c96701c12f1de::t_0f851657d055d0 2-3,6,8,10-13,15
+tests/test_connector.py
+  s_3c96701c12f1de::t_0f851657d055d0 11-13,71,74,76,94
+.dockerignore
+  s_3c96701c12f1de::t_0f851657d055d0 3
+README.md
+  s_3c96701c12f1de::t_08df43ea128779 13
+  s_3c96701c12f1de::t_129778b4f56887 5-6,8-10,25,27-36,38-53,65-72,75,81,83,85,87,96,100,106,117-119,171,175
+  s_3c96701c12f1de::t_0f851657d055d0 1,3,7,37,59-63,78-80,90-93,98,102,108,111-114,122-124,126,128,133,137,139,143,146,159-162,189
+  s_3c96701c12f1de::t_c3620b2a488c88 11-12
+Dockerfile
+  s_3c96701c12f1de::t_0f851657d055d0 5,8,10
+peerlink/__init__.py
+  s_3c96701c12f1de::t_0f851657d055d0 1
+.gitignore
+  s_3c96701c12f1de::t_0f851657d055d0 5
+peerlink/connector.py
+  s_3c96701c12f1de::t_0f851657d055d0 12,59,67,155
+compose.yaml
+  s_3c96701c12f1de::t_08df43ea128779 1-2
+peerlink/static/index.html
+  s_3c96701c12f1de::t_0f851657d055d0 5,9
+peerlink/cli.py
+  s_3c96701c12f1de::t_0f851657d055d0 7-8,12-13,18,21,56,60,86,88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "03f4703aaafdab9dc6b8b01f60ebaeb8a3102ec4",
+  "prompts": {},
+  "sessions": {
+    "s_3c96701c12f1de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bd74-883d-7242-97a4-25b13e9d47a0",
+        "model": "GPT-6-Astra-joybuilder"
+      },
+      "human_author": "yujunjie.50 <yujunjie.50@jd.com>"
+    }
+  }
+}
