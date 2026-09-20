@@ -98,8 +98,8 @@ class ResultInput(LeaseInput):
 
 
 def create_app(db_path=None):
-    store = Store(db_path or os.environ.get("AI2AI_DB", ".ai2ai/hub.db"))
-    app = FastAPI(title="AI2AI Collaboration", version="0.1.0")
+    store = Store(db_path or os.environ.get("PEERLINK_DB", ".peerlink/hub.db"))
+    app = FastAPI(title="Peerlink Collaboration", version="0.1.0")
     app.state.store = store
 
     def actor(authorization: str = Header(default="")):

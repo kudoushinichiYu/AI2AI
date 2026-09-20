@@ -8,9 +8,9 @@ from pathlib import Path
 import httpx
 import pytest
 
-from ai2ai.client import Client
-from ai2ai.connector import run_runtime, save_json, validate_project
-from ai2ai.hub import Store
+from peerlink.client import Client
+from peerlink.connector import run_runtime, save_json, validate_project
+from peerlink.hub import Store
 
 
 @pytest.mark.parametrize("url", ["http://example.com", "ftp://localhost", "https://secret@example.com", "https://example.com?token=secret"])
@@ -68,12 +68,12 @@ def test_real_http_cli_connector_roundtrip(tmp_path):
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
     hub = f"http://127.0.0.1:{port}"
-    server = subprocess.Popen([sys.executable, "-m", "ai2ai.cli", "hub", "--db", str(database), "--port", str(port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    server = subprocess.Popen([sys.executable, "-m", "peerlink.cli", "hub", "--db", str(database), "--port", str(port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     worker = None
     state = tmp_path / "bob"
-    env = {**os.environ, "AI2AI_HUB": hub, "AI2AI_TOKEN": bob}
+    env = {**os.environ, "PEERLINK_HUB": hub, "PEERLINK_TOKEN": bob}
     def cli(*args):
-        return subprocess.run([sys.executable, "-m", "ai2ai.cli", "--state", str(state), *args], env=env, capture_output=True, text=True, timeout=20, check=True).stdout
+        return subprocess.run([sys.executable, "-m", "peerlink.cli", "--state", str(state), *args], env=env, capture_output=True, text=True, timeout=20, check=True).stdout
     try:
         for attempt in range(100):
             try:
@@ -91,7 +91,7 @@ def test_real_http_cli_connector_roundtrip(tmp_path):
         owner = Client(hub, bob)
         task = asker.call("POST", "/api/requests", json={"receiver": "bob", "project": "demo", "question": "背景是什么？"})
         owner.call("POST", f"/api/requests/{task['id']}/decision", json={"action": "approve"})
-        worker = subprocess.Popen([sys.executable, "-m", "ai2ai.cli", "--state", str(state), "work"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        worker = subprocess.Popen([sys.executable, "-m", "peerlink.cli", "--state", str(state), "work"], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         draft = state / "drafts" / (task["id"] + ".pending.json")
         for attempt in range(100):
             if draft.exists() and "answer" in json.loads(draft.read_text()):

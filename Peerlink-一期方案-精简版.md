@@ -1,4 +1,4 @@
-# Personal Agent Collaboration 一期方案（精简版）
+# Peerlink 一期方案（精简版）
 
 > 让我的 Agent 在获得你授权后，向你的项目 Agent 提问；由你确认答案后，再回复给我。
 

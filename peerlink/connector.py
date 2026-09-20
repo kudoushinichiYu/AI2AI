@@ -9,7 +9,7 @@ from pathlib import Path
 
 import httpx
 
-from ai2ai.client import Client
+from peerlink.client import Client
 
 
 def save_json(path, value):
@@ -56,7 +56,7 @@ def run_runtime(project, question, pending_path, auth_dir=None):
     auth_dir = str(Path(auth_dir).resolve())
     if any("," in value or "\n" in value for value in (project["path"], auth_dir)):
         raise ValueError("Docker mount 路径不支持逗号或换行")
-    name = "ai2ai-" + pending_path.name.split(".")[0]
+    name = "peerlink-" + pending_path.name.split(".")[0]
     command = [
         "docker", "run", "--rm", "--name", name, "--read-only",
         "--cap-drop=ALL", "--security-opt=no-new-privileges", "--pids-limit=128",
@@ -64,7 +64,7 @@ def run_runtime(project, question, pending_path, auth_dir=None):
         "--tmpfs", "/tmp:rw,nosuid,nodev,size=268435456,mode=1777",
         "--mount", f"type=bind,src={project['path']},dst=/workspace,readonly",
         "--mount", f"type=bind,src={auth_dir}/auth.json,dst=/credentials/auth.json,readonly",
-        "-i", "ai2ai-codex:local",
+        "-i", "peerlink-codex:local",
     ]
     prompt = ("你在回答一个经过项目负责人批准的外部协作问题。仅阅读 /workspace 中与问题相关的资料；"
               "不要修改文件，不要读取凭证，不执行项目脚本，不进行外部数据发送。"
@@ -152,7 +152,7 @@ def work(state, once=False, auth_dir=None):
                                     json={"lease": task["lease"], "action": "draft_ready"})
                         task["answer"] = answer
                         save_json(path, task)
-                        print(f"草稿已保存：{task['id']}；请用 ai2ai review 查看并确认。", flush=True)
+                        print(f"草稿已保存：{task['id']}；请用 peerlink review 查看并确认。", flush=True)
                     except Exception as error:
                         print(f"本地任务失败：{type(error).__name__}；未上传错误正文。", flush=True)
                         try:

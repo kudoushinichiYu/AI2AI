@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from fastapi.testclient import TestClient
 
-from ai2ai.hub import create_app
+from peerlink.hub import create_app
 
 
 @pytest.fixture

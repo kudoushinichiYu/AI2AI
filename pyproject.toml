@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ai2ai-collaboration"
+name = "peerlink"
 version = "0.1.0"
 description = "Human-approved project agent collaboration MVP"
 requires-python = ">=3.10"
@@ -13,13 +13,13 @@ dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "httpx>=0.27,<1"]
 test = ["pytest>=8,<9"]
 
 [project.scripts]
-ai2ai = "ai2ai.cli:main"
+peerlink = "peerlink.cli:main"
 
 [tool.setuptools.package-data]
-ai2ai = ["static/*"]
+peerlink = ["static/*"]
 
 [tool.setuptools.packages.find]
-include = ["ai2ai*"]
+include = ["peerlink*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

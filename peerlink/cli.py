@@ -4,21 +4,21 @@ import os
 import re
 from pathlib import Path
 
-from ai2ai.client import Client
-from ai2ai.connector import configured, review, save_json, work
+from peerlink.client import Client
+from peerlink.connector import configured, review, save_json, work
 
 
 def main():
-    parser = argparse.ArgumentParser(description="AI2AI 云端 Hub / 本地 Connector / 协作 CLI")
-    parser.add_argument("--state", default=os.environ.get("AI2AI_STATE", str(Path.home() / ".ai2ai")))
+    parser = argparse.ArgumentParser(description="Peerlink 云端 Hub / 本地 Connector / 协作 CLI")
+    parser.add_argument("--state", default=os.environ.get("PEERLINK_STATE", str(Path.home() / ".peerlink")))
     sub = parser.add_subparsers(dest="command", required=True)
     server = sub.add_parser("hub")
     server.add_argument("--host", default="127.0.0.1")
     server.add_argument("--port", type=int, default=8000)
-    server.add_argument("--db", default=os.environ.get("AI2AI_DB", ".ai2ai/hub.db"))
+    server.add_argument("--db", default=os.environ.get("PEERLINK_DB", ".peerlink/hub.db"))
     admin = sub.add_parser("add-user")
     admin.add_argument("name")
-    admin.add_argument("--db", default=os.environ.get("AI2AI_DB", ".ai2ai/hub.db"))
+    admin.add_argument("--db", default=os.environ.get("PEERLINK_DB", ".peerlink/hub.db"))
     setup = sub.add_parser("connect")
     setup.add_argument("--name", required=True)
     project = sub.add_parser("project-add")
@@ -53,11 +53,11 @@ def main():
     state = Path(args.state).expanduser().resolve()
     if args.command == "hub":
         import uvicorn
-        from ai2ai.hub import create_app
+        from peerlink.hub import create_app
         uvicorn.run(create_app(args.db), host=args.host, port=args.port)
         return
     if args.command == "add-user":
-        from ai2ai.hub import Store
+        from peerlink.hub import Store
         if not re.fullmatch(r"[a-zA-Z0-9_-]{1,80}", args.name):
             parser.error("用户名只允许字母、数字、下划线和短横线，最长 80 字符")
         print(Store(args.db).add_user(args.name))
@@ -83,9 +83,9 @@ def main():
         save_json(state / "connector.json", config)
         print("项目注册已更新")
         return
-    hub, token = os.environ.get("AI2AI_HUB", "http://127.0.0.1:8000"), os.environ.get("AI2AI_TOKEN")
+    hub, token = os.environ.get("PEERLINK_HUB", "http://127.0.0.1:8000"), os.environ.get("PEERLINK_TOKEN")
     if not token:
-        parser.error("先设置 AI2AI_TOKEN；远程使用同时设置 HTTPS AI2AI_HUB")
+        parser.error("先设置 PEERLINK_TOKEN；远程使用同时设置 HTTPS PEERLINK_HUB")
     client = Client(hub, token)
     if args.command == "connect":
         if (state / "connector.json").exists():

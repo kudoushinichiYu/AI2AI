@@ -1,6 +1,6 @@
 .git
 .venv
-.ai2ai
+.peerlink
 __pycache__
 *.egg-info
 .env
