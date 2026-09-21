@@ -8,10 +8,12 @@
 </style>
 <h1>Peerlink <small>项目 Agent 协作</small></h1>
 <p>云端协调，本地执行。每次访问先批准，每份答案由本人确认。</p>
-<section id="login"><label>用户 Token（管理员提供，仅保存在当前页面内存）</label><input id="token" type="password" autocomplete="off"><button id="connect">连接</button></section>
+<section id="registration"><h2>申请注册</h2><p><small>填写 ERP 账号发送注册请求，例如 yujunjie.50。页面会自动保存注册回执并查询审批状态；管理员批准后会自动登录，不需要手工保存 Token。</small></p><label for="register-name">ERP 账号</label><input id="register-name" autocomplete="username" maxlength="80" pattern="[a-zA-Z0-9._-]+" title="请输入 ERP 账号，仅限英文字母、数字、点号、下划线和短横线" required><button id="register-submit" type="button">发送注册请求</button><p id="registration-status" class="tag"></p></section>
+<section id="login"><h2>已有账户</h2><label for="token">用户 Token（仅保存在当前页面内存）</label><input id="token" type="password" autocomplete="off"><button id="connect" type="button">登录</button></section>
 <p id="message" role="status"></p>
 <main id="workspace" hidden>
 <p><strong id="identity"></strong> <button id="refresh" class="secondary">刷新</button><button id="logout" class="secondary">退出</button></p>
+<section id="admin"><h2>用户管理</h2><p><small>批准后成员使用注册时获得的 Token 登录；拒绝会删除该待审批账户。</small></p><div id="users"></div></section>
 <section><h2>向项目 Agent 提问</h2><select id="peer" aria-label="联系人"></select><select id="project" aria-label="项目"></select><textarea id="question" placeholder="想了解哪个项目问题？"></textarea><button id="ask">发送请求</button></section>
 <h2>我的请求与待审批</h2><p><small>页面每 5 秒刷新。答案草稿只在接收方本地审核，这里仅显示确认发送后的内容。</small></p><div id="requests"></div>
 </main><script src="/app.js" defer></script>

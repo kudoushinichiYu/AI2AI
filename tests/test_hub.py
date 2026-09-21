@@ -2,16 +2,20 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
+
 from fastapi.testclient import TestClient
 
-from peerlink.hub import create_app
+from peerlink.hub import create_app, digest
 
 
 @pytest.fixture
 def setup(tmp_path):
     app = create_app(tmp_path / "hub.db")
     client = TestClient(app)
-    tokens = {name: app.state.store.add_user(name) for name in ("alex", "bob", "carol")}
+    tokens = {name: app.state.store.register_user(name) for name in ("alex", "bob", "carol")}
+    app.state.store.approve_user("alex")
+    app.state.store.approve_user("bob")
+    app.state.store.approve_user("carol")
     headers = {name: {"Authorization": "Bearer " + token} for name, token in tokens.items()}
     device = client.post("/api/devices", headers=headers["bob"], json={"name": "bob-mac"}).json()
     headers["device"] = {"Authorization": "Bearer " + device["token"]}
@@ -19,6 +23,85 @@ def setup(tmp_path):
         "id": "recommendation", "path": "/private/bob/recommendation", "runtime": "mock"})
     assert response.status_code == 200
     return app, client, headers, device
+
+
+def test_registration_requires_admin_approval(tmp_path):
+    app = create_app(tmp_path / "hub.db")
+    client = TestClient(app)
+    result = client.post("/api/register", json={"username": "dylan"}).json()
+    assert result["username"] == "dylan"
+    assert result["status"] == "PENDING"
+    assert "token" not in result
+    receipt = result["receipt"]
+    pending_headers = {"Authorization": "Bearer " + receipt}
+    assert client.get("/api/requests", headers=pending_headers).status_code == 401
+
+    admin_token = app.state.store.create_admin("bob")
+    admin_headers = {"Authorization": "Bearer " + admin_token}
+    assert client.get("/api/admin/users", headers=pending_headers).status_code == 401
+    users = client.get("/api/admin/users", headers=admin_headers).json()
+    assert [row["id"] for row in users if row["status"] == "PENDING"] == ["dylan"]
+    assert client.post("/api/admin/users/dylan/decision", headers=admin_headers, json={"action": "approve"}).status_code == 200
+    assert client.get("/api/requests", headers=pending_headers).status_code == 401
+    claim = client.post("/api/register/status", json={"username": "dylan", "receipt": receipt}).json()
+    assert claim["status"] == "ACTIVE"
+    login_headers = {"Authorization": "Bearer " + claim["token"]}
+    assert client.get("/api/requests", headers=login_headers).status_code == 200
+    assert client.get("/api/me", headers=login_headers).json()["is_admin"] is False
+    assert client.post("/api/register/status", json={"username": "dylan", "receipt": receipt}).status_code == 401
+
+
+def test_rejected_registration_is_removed(tmp_path):
+    app = create_app(tmp_path / "hub.db")
+    client = TestClient(app)
+    token = app.state.store.register_user("erica")
+    admin_token = app.state.store.create_admin("owner")
+    admin_headers = {"Authorization": "Bearer " + admin_token}
+    assert client.post("/api/admin/users/erica/decision", headers=admin_headers, json={"action": "reject"}).status_code == 200
+    assert client.get("/api/requests", headers={"Authorization": "Bearer " + token}).status_code == 401
+
+
+def test_registration_accepts_unique_username_only(tmp_path):
+    app = create_app(tmp_path / "hub.db")
+    client = TestClient(app)
+    assert client.post("/api/register", json={"username": "dylan"}).status_code == 200
+    assert client.post("/api/register", json={"username": "dylan"}).status_code == 409
+    assert client.post("/api/register", json={"username": "bad name"}).status_code == 422
+
+
+def test_registration_accepts_erp_with_dot(tmp_path):
+    app = create_app(tmp_path / "hub.db")
+    client = TestClient(app)
+    response = client.post("/api/register", json={"username": "yujunjie.50"})
+    assert response.status_code == 200
+    assert response.json()["username"] == "yujunjie.50"
+    assert client.post("/api/register", json={"username": "项目成员"}).status_code == 422
+
+
+def test_pending_user_is_not_discoverable(tmp_path):
+    app = create_app(tmp_path / "hub.db")
+    client = TestClient(app)
+    active_token = app.state.store.create_admin("owner")
+    app.state.store.register_user("pending")
+    peers = client.get(
+        "/api/peers", headers={"Authorization": "Bearer " + active_token}
+    ).json()
+    assert peers == ["owner"]
+
+
+def test_existing_users_are_activated_and_first_is_admin(tmp_path):
+    db_path = tmp_path / "hub.db"
+    app = create_app(db_path)
+    with app.state.store.connect() as conn:
+        conn.execute("DROP TABLE users")
+        conn.execute("CREATE TABLE users (id TEXT PRIMARY KEY, token TEXT NOT NULL UNIQUE)")
+        conn.execute("INSERT INTO users VALUES ('legacy', ?)", (digest("legacy-token"),))
+    migrated = TestClient(create_app(db_path))
+    with create_app(db_path).state.store.connect() as conn:
+        row = conn.execute("SELECT * FROM users WHERE id='legacy'").fetchone()
+    assert row["status"] == "ACTIVE"
+    assert row["is_admin"] == 1
+    assert migrated.get("/api/requests", headers={"Authorization": "Bearer legacy-token"}).status_code == 200
 
 
 def question(client, headers):

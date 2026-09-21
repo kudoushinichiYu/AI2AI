@@ -27,7 +27,11 @@ class Store:
             conn.executescript("""
                 PRAGMA journal_mode=WAL;
                 CREATE TABLE IF NOT EXISTS users (
-                    id TEXT PRIMARY KEY, token TEXT NOT NULL UNIQUE
+                    id TEXT PRIMARY KEY, token TEXT NOT NULL UNIQUE,
+                    status TEXT NOT NULL DEFAULT 'ACTIVE',
+                    is_admin INTEGER NOT NULL DEFAULT 0,
+                    created REAL NOT NULL DEFAULT 0,
+                    credential_kind TEXT NOT NULL DEFAULT 'LOGIN'
                 );
                 CREATE TABLE IF NOT EXISTS devices (
                     id TEXT PRIMARY KEY, owner TEXT NOT NULL, name TEXT NOT NULL,
@@ -49,6 +53,22 @@ class Store:
                     event TEXT NOT NULL, created REAL NOT NULL
                 );
             """)
+        self.migrate()
+
+    def migrate(self):
+        with self.connect() as conn:
+            columns = {row["name"] for row in conn.execute("PRAGMA table_info(users)")}
+            if "status" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'ACTIVE'")
+            if "is_admin" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+            if "created" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN created REAL NOT NULL DEFAULT 0")
+            if "credential_kind" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN credential_kind TEXT NOT NULL DEFAULT 'LOGIN'")
+            conn.execute("UPDATE users SET status='ACTIVE' WHERE status=''")
+            conn.execute("UPDATE users SET is_admin=1 "
+                         "WHERE id=(SELECT id FROM users ORDER BY created,rowid LIMIT 1)")
 
     @contextmanager
     def connect(self):
@@ -61,10 +81,68 @@ class Store:
             conn.close()
 
     def add_user(self, name):
+        raise NotImplementedError("Use register_user or create_admin instead")
+
+    def register_user(self, name):
         token = secrets.token_urlsafe(32)
         with self.connect() as conn:
-            conn.execute("INSERT INTO users VALUES (?, ?)", (name, digest(token)))
+            conn.execute("INSERT INTO users(id,token,status,is_admin,created) VALUES (?,?,?,?,?)",
+                         (name, digest(token), "PENDING", 0, time.time()))
         return token
+
+    def request_registration(self, name):
+        receipt = secrets.token_urlsafe(32)
+        with self.connect() as conn:
+            conn.execute("INSERT INTO users(id,token,status,is_admin,created,credential_kind) "
+                         "VALUES (?,?,?,?,?,?)",
+                         (name, digest(receipt), "PENDING", 0, time.time(), "REGISTRATION"))
+        return receipt
+
+    def claim_registration(self, name, receipt):
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT status,credential_kind FROM users WHERE id=? AND token=?",
+                (name, digest(receipt)),
+            ).fetchone()
+            if not row or row["credential_kind"] != "REGISTRATION":
+                raise PermissionError("注册回执无效或已使用")
+            if row["status"] == "PENDING":
+                return {"username": name, "status": "PENDING"}
+            if row["status"] != "ACTIVE":
+                raise PermissionError("注册申请不可用")
+            login_token = secrets.token_urlsafe(32)
+            conn.execute(
+                "UPDATE users SET token=?,credential_kind='LOGIN' WHERE id=? AND token=?",
+                (digest(login_token), name, digest(receipt)),
+            )
+            return {"username": name, "status": "ACTIVE", "token": login_token}
+
+    def create_admin(self, name):
+        token = secrets.token_urlsafe(32)
+        with self.connect() as conn:
+            if conn.execute("SELECT 1 FROM users WHERE id=?", (name,)).fetchone():
+                raise ValueError("用户已存在")
+            conn.execute("INSERT INTO users(id,token,status,is_admin,created) VALUES (?,?,?,?,?)",
+                         (name, digest(token), "ACTIVE", 1, time.time()))
+        return token
+
+    def approve_user(self, name):
+        with self.connect() as conn:
+            row = conn.execute("SELECT status FROM users WHERE id=?", (name,)).fetchone()
+            if not row:
+                raise KeyError("用户不存在")
+            if row["status"] != "PENDING":
+                raise ValueError("用户不在待审批状态")
+            conn.execute("UPDATE users SET status='ACTIVE' WHERE id=?", (name,))
+
+    def reject_user(self, name):
+        with self.connect() as conn:
+            row = conn.execute("SELECT status FROM users WHERE id=?", (name,)).fetchone()
+            if not row:
+                raise KeyError("用户不存在")
+            if row["status"] != "PENDING":
+                raise ValueError("用户不在待审批状态")
+            conn.execute("DELETE FROM users WHERE id=?", (name,))
 
 
 class DeviceInput(BaseModel):
@@ -87,6 +165,16 @@ class QuestionInput(BaseModel):
 class DecisionInput(BaseModel):
     action: Literal["approve", "reject", "cancel"]
 
+class RegistrationInput(BaseModel):
+    username: str = Field(pattern=r"^[a-zA-Z0-9._-]{1,80}$")
+
+class UserDecisionInput(BaseModel):
+    action: Literal["approve", "reject"]
+
+class RegistrationStatusInput(BaseModel):
+    username: str = Field(pattern=r"^[a-zA-Z0-9._-]{1,80}$")
+    receipt: str = Field(min_length=1, max_length=200)
+
 
 class LeaseInput(BaseModel):
     lease: str = Field(min_length=1, max_length=200)
@@ -107,7 +195,8 @@ def create_app(db_path=None):
             raise HTTPException(401, "需要 Bearer Token")
         token = digest(authorization[7:])
         with store.connect() as conn:
-            row = conn.execute("SELECT id FROM users WHERE token=?", (token,)).fetchone()
+            row = conn.execute("SELECT id,is_admin FROM users "
+                               "WHERE token=? AND status='ACTIVE' AND credential_kind='LOGIN'", (token,)).fetchone()
             if row:
                 return {"kind": "user", "owner": row["id"], "id": row["id"]}
             row = conn.execute("SELECT id,owner FROM devices WHERE token=?", (token,)).fetchone()
@@ -123,6 +212,12 @@ def create_app(db_path=None):
     def device(current=Depends(actor)):
         if current["kind"] != "device":
             raise HTTPException(403, "需要设备凭证")
+        return current
+
+    def admin(current=Depends(user)):
+        with store.connect() as conn:
+            if not conn.execute("SELECT is_admin FROM users WHERE id=?", (current["id"],)).fetchone()[0]:
+                raise HTTPException(403, "需要管理员权限")
         return current
 
     def event(conn, request_id, current, action):
@@ -164,12 +259,49 @@ def create_app(db_path=None):
 
     @app.get("/api/me")
     def me(current=Depends(user)):
-        return current
+        with store.connect() as conn:
+            role = conn.execute("SELECT is_admin FROM users WHERE id=?", (current["id"],)).fetchone()[0]
+        return {**current, "is_admin": bool(role)}
+
+    @app.post("/api/register")
+    def register(body: RegistrationInput):
+        try:
+            receipt = store.request_registration(body.username)
+        except sqlite3.IntegrityError as error:
+            raise HTTPException(409, "用户名已被占用") from error
+        return {"username": body.username, "receipt": receipt, "status": "PENDING"}
+
+    @app.post("/api/register/status")
+    def registration_status(body: RegistrationStatusInput):
+        try:
+            return store.claim_registration(body.username, body.receipt)
+        except PermissionError as error:
+            raise HTTPException(401, str(error)) from error
+
+    @app.get("/api/admin/users")
+    def users(current=Depends(admin)):
+        with store.connect() as conn:
+            return [dict(row) for row in conn.execute(
+                "SELECT id,status,is_admin,created FROM users ORDER BY CASE WHEN status='PENDING' THEN 0 ELSE 1 END,created")]
+
+    @app.post("/api/admin/users/{username}/decision")
+    def user_decision(username: str, body: UserDecisionInput, current=Depends(admin)):
+        try:
+            if body.action == "approve":
+                store.approve_user(username)
+            else:
+                store.reject_user(username)
+        except KeyError as error:
+            raise HTTPException(404, "用户不存在") from error
+        except ValueError as error:
+            raise HTTPException(409, str(error)) from error
+        return {"username": username, "status": "ACTIVE" if body.action == "approve" else "REMOVED"}
 
     @app.get("/api/peers")
     def peers(current=Depends(user)):
         with store.connect() as conn:
-            return [row["id"] for row in conn.execute("SELECT id FROM users ORDER BY id")]
+            return [row["id"] for row in conn.execute(
+                "SELECT id FROM users WHERE status='ACTIVE' ORDER BY id")]
 
     @app.post("/api/devices")
     def register_device(body: DeviceInput, current=Depends(user)):

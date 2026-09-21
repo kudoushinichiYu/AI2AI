@@ -43,11 +43,11 @@ Requires **Python 3.10+**. The local Connector currently targets **macOS and Lin
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
-peerlink add-user your-username
+peerlink init-admin your-username
 peerlink hub
 ```
 
-Replace `your-username` with an actual username. `add-user` prints that user's Token once: keep it private. Open [localhost:8000](http://127.0.0.1:8000) and sign in with it. Create a separate account for each member; self-service sign-up is not available yet.
+Replace `your-username` with an actual username. `init-admin` creates the first administrator and prints its Token once: keep it private. Open [localhost:8000](http://127.0.0.1:8000) and sign in with that Token. Other members can register on the web page; after the administrator approves the request, they sign in with the Token shown when they registered.
 
 ### 2. Connect a project
 
@@ -85,6 +85,7 @@ Replace `REQUEST_ID` with the ID shown by `review`. Run `--send` only after revi
 | --- | --- |
 | Request API, approval interface, local review, and CLI | Implemented; the web interface is currently in Chinese |
 | Separate user/device credentials and persistent requests | Implemented |
+| Web self-service registration and administrator approval | Implemented |
 | Mock runtime | Automated end-to-end test coverage |
 | Codex Docker adapter | Experimental; real runtime validation pending |
 | Docker deployment configuration and Codex Skill | Included; not a one-click installer |

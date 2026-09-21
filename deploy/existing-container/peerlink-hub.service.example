@@ -1,0 +1,17 @@
+[Unit]
+Description=Peerlink Hub inside an existing container
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/docker exec --user @UID@:@GID@ @CONTAINER@ /usr/bin/env -i HOME=@ROOT@/home PATH=@ROOT@/current/.venv/bin:/usr/bin:/bin LANG=C.UTF-8 PYTHONNOUSERSITE=1 PEERLINK_HOME=@ROOT@ PEERLINK_PORT=18083 @ROOT@/current/.venv/bin/python @ROOT@/current/deploy/existing-container/manage.py run
+ExecStop=/usr/bin/docker exec --user @UID@:@GID@ @CONTAINER@ /usr/bin/env -i HOME=@ROOT@/home PATH=@ROOT@/current/.venv/bin:/usr/bin:/bin LANG=C.UTF-8 PYTHONNOUSERSITE=1 PEERLINK_HOME=@ROOT@ @ROOT@/current/.venv/bin/python @ROOT@/current/deploy/existing-container/manage.py stop
+Restart=on-failure
+RestartSec=10
+SuccessExitStatus=143
+TimeoutStopSec=35
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

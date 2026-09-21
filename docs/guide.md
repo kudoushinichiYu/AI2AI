@@ -14,18 +14,20 @@ Install Docker and Docker Compose, obtain this repository, and run:
 
 ```bash
 docker compose up -d --build
-docker compose exec hub peerlink add-user <username>
+docker compose exec hub peerlink init-admin <administrator-username>
 ```
 
-Create a distinct account for each member. Usernames accept letters, digits, underscores, and hyphens, up to 80 characters. Each `add-user` call prints a user Token once. Deliver it privately; never commit it or include it in screenshots or reports. Tokens are long-lived in this preview, and there is no self-service registration.
+Replace `<administrator-username>` with an actual username before running the command; do not keep the angle brackets. Usernames accept letters, digits, underscores, and hyphens, up to 80 characters. `init-admin` prints the administrator Token once. Deliver it privately; never commit it or include it in screenshots or reports. When starting from an older database, the earliest existing account is upgraded to administrator automatically.
 
 Compose binds port 8000 to the server's loopback interface only. Configure an HTTPS reverse proxy using the [Caddy example](../deploy/Caddyfile.example) or your own Nginx configuration. Use a certificate trusted by member devices; remote clients do not accept plain HTTP or offer an option to disable TLS verification. Start on a private network or VPN rather than exposing the preview to the public internet.
 
-Give each member the Hub's HTTPS URL, their individual Token, and access to this repository or a package built from it. The current web interface is in Chinese. Tokens are kept only in page memory, so reloading requires signing in again. `/docs` exposes API documentation and `/health` provides a health check.
+Give members the Hub's HTTPS URL and access to this repository or a package built from it. Members register on the web page, save the pending Token displayed once, and sign in after an administrator approves them. The current web interface is in Chinese. Tokens are kept only in page memory, so reloading requires signing in again. `/docs` exposes API documentation and `/health` provides a health check.
 
 A 4-vCPU / 8-GB host is a reasonable starting point for a trial group of fewer than 10 members, not a benchmarked capacity claim. Each member supplies their local execution resources and model access; the Hub does not perform model inference.
 
 ### Local evaluation without Docker
+
+If you must reuse an existing container without restarting its application, see the [existing-container deployment guide](../deploy/existing-container/README.md) for an isolated virtual environment and host-managed service approach.
 
 Requires Python 3.10+:
 
@@ -33,11 +35,11 @@ Requires Python 3.10+:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[test]'
-peerlink add-user <username>
+peerlink init-admin <username>
 peerlink hub
 ```
 
-Open [localhost:8000](http://127.0.0.1:8000). To simulate multiple members, create separate accounts and use separate browser windows. The default database is `.peerlink/hub.db` relative to the working directory. Keep the same working directory or use an explicit `--db` path to avoid accidentally creating a new database.
+Open [localhost:8000](http://127.0.0.1:8000). To simulate additional members, register them in separate browser windows and approve them with the administrator account. The default database is `.peerlink/hub.db` relative to the working directory. Keep the same working directory or use an explicit `--db` path to avoid accidentally creating a new database.
 
 ## 2. Install and connect a member's client
 
@@ -175,7 +177,7 @@ The Compose project name is `peerlink`. To retain an existing deployment's volum
 
 ### Before broader deployment
 
-All registered users currently belong to a single trusted trial group. They can discover project names and submit questions, but execution still needs the owner's approval. Public deployment needs further work on SSO or short-lived credentials, rotation, contact/access policies, rate limiting, retention, audit queries, monitoring, backup/restore drills, load testing, and browser validation.
+All approved users currently belong to a single trusted trial group. They can discover project names and submit questions, but execution still needs the owner's approval. Administrator approval is a human trust decision, not identity verification. Public deployment needs further work on SSO or short-lived credentials, rotation, registration abuse controls, contact/access policies, rate limiting, retention, audit queries, monitoring, backup/restore drills, load testing, and browser validation.
 
 ## 7. Development and verification
 

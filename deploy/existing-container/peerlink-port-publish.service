@@ -1,0 +1,13 @@
+[Unit]
+Description=Publish Peerlink from jdme-bot to the host network
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/peerlink-port-publish start
+ExecStop=/usr/local/sbin/peerlink-port-publish stop
+
+[Install]
+WantedBy=multi-user.target

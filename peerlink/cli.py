@@ -16,9 +16,9 @@ def main():
     server.add_argument("--host", default="127.0.0.1")
     server.add_argument("--port", type=int, default=8000)
     server.add_argument("--db", default=os.environ.get("PEERLINK_DB", ".peerlink/hub.db"))
-    admin = sub.add_parser("add-user")
-    admin.add_argument("name")
-    admin.add_argument("--db", default=os.environ.get("PEERLINK_DB", ".peerlink/hub.db"))
+    init_admin = sub.add_parser("init-admin")
+    init_admin.add_argument("name")
+    init_admin.add_argument("--db", default=os.environ.get("PEERLINK_DB", ".peerlink/hub.db"))
     setup = sub.add_parser("connect")
     setup.add_argument("--name", required=True)
     project = sub.add_parser("project-add")
@@ -56,11 +56,11 @@ def main():
         from peerlink.hub import create_app
         uvicorn.run(create_app(args.db), host=args.host, port=args.port)
         return
-    if args.command == "add-user":
+    if args.command == "init-admin":
         from peerlink.hub import Store
         if not re.fullmatch(r"[a-zA-Z0-9_-]{1,80}", args.name):
             parser.error("用户名只允许字母、数字、下划线和短横线，最长 80 字符")
-        print(Store(args.db).add_user(args.name))
+        print(Store(args.db).create_admin(args.name))
         return
     if args.command == "work":
         work(state, args.once, args.auth_dir)

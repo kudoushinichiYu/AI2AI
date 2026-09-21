@@ -43,11 +43,11 @@ Peerlink 让团队成员可以向彼此的项目 Agent 提问，而不必开放�
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
-peerlink add-user your-username
+peerlink init-admin your-username
 peerlink hub
 ```
 
-将 `your-username` 替换为实际用户名。`add-user` 会输出一次该用户的 Token，请妥善保存。打开 [localhost:8000](http://127.0.0.1:8000)，使用 Token 登录。每位成员应使用独立账户；当前尚未提供自助注册。
+将 `your-username` 替换为实际用户名。`init-admin` 会创建首个管理员并输出一次登录 Token，请妥善保存。打开 [localhost:8000](http://127.0.0.1:8000) 使用该 Token 登录；普通成员可直接在页面注册，管理员批准后成员再使用注册时保存的 Token 登录。
 
 ### 2. 接入本地项目
 
@@ -85,6 +85,7 @@ peerlink review REQUEST_ID --send
 | --- | --- |
 | 请求 API、审批页面、本地审核和 CLI | 已实现；网页界面目前为中文 |
 | 用户与设备凭证分离、请求持久化 | 已实现 |
+| 网页自助注册、管理员审批 | 已实现 |
 | Mock Runtime | 有自动化端到端测试覆盖 |
 | Codex Docker 适配器 | 实验性；真实 Runtime 验证待完成 |
 | Docker 部署配置与 Codex Skill | 已提供；不是一键安装器 |

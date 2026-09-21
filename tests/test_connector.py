@@ -63,7 +63,9 @@ def test_real_http_cli_connector_roundtrip(tmp_path):
     import sys
     database = tmp_path / "hub.db"
     store = Store(database)
-    alex, bob = store.add_user("alex"), store.add_user("bob")
+    alex, bob = store.register_user("alex"), store.register_user("bob")
+    store.approve_user("alex")
+    store.approve_user("bob")
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
