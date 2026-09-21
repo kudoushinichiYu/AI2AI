@@ -1,0 +1,71 @@
+README.md
+  s_1a3210f7570669::t_eb5f2c20d200be 46,50,88
+docs/guide.zh-CN.md
+  s_3c96701c12f1de::t_26f79d6cbb5697 57-58
+  s_1a3210f7570669::t_d297ff5a2f299c 41,44,50-51,189
+README.zh-CN.md
+  s_1a3210f7570669::t_eb5f2c20d200be 46,50,88
+deploy/existing-container/peerlink-hub.service.example
+  s_3c96701c12f1de::t_26f79d6cbb5697 1-17
+peerlink/static/index.html
+  s_2f75bfd3e049f0::t_e562f9a5a88dcc 12
+  s_2f75bfd3e049f0::t_66baff733b4cac 11
+tests/test_hub.py
+  s_1a3210f7570669::t_a60e7972918edd 15,28-33,38,42-44,52-54,56-57,59-63,92-97,99-104
+  s_2f75bfd3e049f0::t_b8fbd49ea1db17 73-74,76,79-80
+  s_2f75bfd3e049f0::t_e562f9a5a88dcc 81-91
+  s_1a3210f7570669::t_7d5adec0e8fe9d 37
+  s_2f75bfd3e049f0::t_66baff733b4cac 34-36,45-51
+  s_2f75bfd3e049f0::t_89c7a08ff3a957 72,75,77-78
+deploy/existing-container/README.md
+  s_3c96701c12f1de::t_26f79d6cbb5697 1-48
+deploy/existing-container/peerlink-port-publish.service
+  s_1a3210f7570669::t_a291864261ddd8 1-13
+docs/guide.md
+  s_3c96701c12f1de::t_26f79d6cbb5697 30-31
+requirements.txt
+  s_1a3210f7570669::t_7be61d6bc5133b 1-3
+deploy/existing-container/peerlink-port-publish.sh
+  s_1a3210f7570669::t_a291864261ddd8 1-8,10-28
+  s_1a3210f7570669::t_3826cf0e506e92 9
+peerlink/static/app.js
+  s_2f75bfd3e049f0::t_66baff733b4cac 4-5,70-75,77,80,82-86,88-99,106-107,112,118-121
+  s_2f75bfd3e049f0::t_eafb281e29aed3 100-105,108-109
+  s_2f75bfd3e049f0::t_b8fbd49ea1db17 10-15
+peerlink/hub.py
+  s_2f75bfd3e049f0::t_89c7a08ff3a957 169
+  s_2f75bfd3e049f0::t_e562f9a5a88dcc 303-304
+  s_2f75bfd3e049f0::t_66baff733b4cac 33-34,56-71,84-86,89-90,93-119,174-177,198-199,217-222,262-279
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "c73a3e05b6fb61aeeb17b8d1c3f70652dd1dad29",
+  "prompts": {},
+  "sessions": {
+    "s_1a3210f7570669": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c2a0-c8ee-7812-9b58-a4a76f205abe",
+        "model": "GLM-5.3-Local-joybuilder"
+      },
+      "human_author": "yujunjie.50 <yujunjie.50@jd.com>"
+    },
+    "s_2f75bfd3e049f0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c2ff-22f2-7123-a418-c80eee7dba32",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "yujunjie.50 <yujunjie.50@jd.com>"
+    },
+    "s_3c96701c12f1de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bd74-883d-7242-97a4-25b13e9d47a0",
+        "model": "GPT-6-Astra-joybuilder"
+      },
+      "human_author": "yujunjie.50 <yujunjie.50@jd.com>"
+    }
+  }
+}
