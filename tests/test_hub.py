@@ -8,6 +8,14 @@ from fastapi.testclient import TestClient
 from peerlink.hub import create_app, digest
 
 
+def test_public_page_redirects_http_domain_to_https(tmp_path):
+    client = TestClient(create_app(tmp_path / "hub.db"))
+    page = client.get("/")
+    assert page.status_code == 200
+    assert 'location.protocol==="http:"' in page.text
+    assert 'https://peerlink.jd.com' in page.text
+
+
 @pytest.fixture
 def setup(tmp_path):
     app = create_app(tmp_path / "hub.db")
