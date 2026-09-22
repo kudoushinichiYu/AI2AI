@@ -1,0 +1,41 @@
+peerlink/hub.py
+  s_2f75bfd3e049f0::t_e1998027e3fc78 229,301,303,308
+README.md
+  s_2f75bfd3e049f0::t_e1998027e3fc78 14
+README.zh-CN.md
+  s_2f75bfd3e049f0::t_e1998027e3fc78 14
+tests/test_service.py
+  s_2f75bfd3e049f0::t_a05608c1dde220 12,20
+docs/member-guide.md
+  s_2f75bfd3e049f0::t_e1998027e3fc78 13
+docs/guide.md
+  s_2f75bfd3e049f0::t_e1998027e3fc78 49
+plugins/peerlink/README.md
+  s_2f75bfd3e049f0::t_e1998027e3fc78 5
+docs/member-guide.zh-CN.md
+  s_2f75bfd3e049f0::t_e1998027e3fc78 21
+docs/guide.zh-CN.md
+  s_2f75bfd3e049f0::t_e1998027e3fc78 76
+plugins/peerlink/.codex-plugin/plugin.json
+  s_2f75bfd3e049f0::t_e1998027e3fc78 3
+peerlink/service.py
+  s_2f75bfd3e049f0::t_a05608c1dde220 28,36,44
+pyproject.toml
+  s_2f75bfd3e049f0::t_e1998027e3fc78 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "b7bbae0116d893fbdd8d13ca9941b2a97d379447",
+  "prompts": {},
+  "sessions": {
+    "s_2f75bfd3e049f0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c2ff-22f2-7123-a418-c80eee7dba32",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "kudoushinichiYu <2449315540@qq.com>"
+    }
+  }
+}
