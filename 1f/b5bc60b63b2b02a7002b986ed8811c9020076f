@@ -1,0 +1,21 @@
+tests/test_hub.py
+  s_2f75bfd3e049f0::t_73b818a7aa43f7 11-18
+peerlink/static/index.html
+  s_2f75bfd3e049f0::t_73b818a7aa43f7 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "1fb5bc60b63b2b02a7002b986ed8811c9020076f",
+  "prompts": {},
+  "sessions": {
+    "s_2f75bfd3e049f0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c2ff-22f2-7123-a418-c80eee7dba32",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "yujunjie.50 <yujunjie.50@jd.com>"
+    }
+  }
+}
