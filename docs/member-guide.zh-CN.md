@@ -18,7 +18,7 @@
 需要 Python 3.10+ 的 macOS 或 Linux。
 
 ```bash
-python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.2.0-py3-none-any.whl
+python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.2.1-py3-none-any.whl
 codex plugin marketplace add kudoushinichiYu/peerlink --ref main
 codex plugin add peerlink@peerlink-team
 ```

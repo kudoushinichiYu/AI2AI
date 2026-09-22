@@ -25,6 +25,7 @@ def launchd_definition(state, auth_dir=None, log_dir=None):
         "RunAtLoad": True,
         "KeepAlive": {"SuccessfulExit": False},
         "ProcessType": "Background",
+        "EnvironmentVariables": {"PATH": os.environ.get("PATH", os.defpath)},
         "StandardOutPath": str(log_dir / "connector.log"),
         "StandardErrorPath": str(log_dir / "connector.error.log"),
     }
@@ -32,6 +33,7 @@ def launchd_definition(state, auth_dir=None, log_dir=None):
 
 def systemd_definition(state, auth_dir=None):
     command = " ".join(_systemd_quote(value) for value in worker_command(state, auth_dir))
+    service_path_value = os.environ.get("PATH", os.defpath).replace("%", "%%")
     return "\n".join([
         "[Unit]",
         "Description=Peerlink Connector",
@@ -39,6 +41,7 @@ def systemd_definition(state, auth_dir=None):
         "Wants=network-online.target",
         "",
         "[Service]",
+        f'Environment="PATH={service_path_value}"',
         f"ExecStart={command}",
         "Restart=on-failure",
         "RestartSec=5",

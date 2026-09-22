@@ -73,7 +73,7 @@ peerlink hub
 本地 Connector 面向 macOS / Linux，需要 Python 3.10+。可从 Hub 下载已发布客户端：
 
 ```bash
-python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.2.0-py3-none-any.whl
+python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.2.1-py3-none-any.whl
 peerlink skill-install
 ```
 

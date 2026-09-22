@@ -9,6 +9,7 @@ def test_launchd_service_runs_worker_and_restarts(tmp_path):
     assert definition["Label"] == "com.peerlink.connector"
     assert definition["RunAtLoad"] is True
     assert definition["KeepAlive"] == {"SuccessfulExit": False}
+    assert definition["EnvironmentVariables"]["PATH"]
     assert definition["ProgramArguments"][-2:] == ["--auth-dir", str((tmp_path / "auth").resolve())]
     assert plistlib.loads(plistlib.dumps(definition))["Label"] == "com.peerlink.connector"
 
@@ -16,6 +17,7 @@ def test_launchd_service_runs_worker_and_restarts(tmp_path):
 def test_systemd_service_is_user_scoped_and_hardened(tmp_path):
     unit = service.systemd_definition(tmp_path)
     assert "ExecStart=" in unit
+    assert 'Environment="PATH=' in unit
     assert "peerlink.cli" in unit
     assert "NoNewPrivileges=true" in unit
     assert "WantedBy=default.target" in unit
