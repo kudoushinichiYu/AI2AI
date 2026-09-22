@@ -47,23 +47,21 @@ peerlink init-admin your-username
 peerlink hub
 ```
 
-将 `your-username` 替换为实际用户名。`init-admin` 会创建首个管理员并输出一次登录 Token，请妥善保存。打开 [localhost:8000](http://127.0.0.1:8000) 使用该 Token 登录；普通成员可直接在页面注册，管理员批准后成员再使用注册时保存的 Token 登录。
+将 `your-username` 替换为实际用户名。`init-admin` 会安全提示输入密码。打开 [localhost:8000](http://127.0.0.1:8000) 使用用户名和密码登录；普通成员在页面注册，管理员批准后即可登录。
 
 ### 2. 接入本地项目
 
-在另一个终端激活同一虚拟环境，设置 Hub 地址，并在 `read` 等待输入时粘贴自己的 Token：
+登录网页，在“我的设备”生成一次性配对码，然后在本机执行：
 
 ```bash
-export PEERLINK_HUB=http://127.0.0.1:8000
-read -s PEERLINK_TOKEN
-export PEERLINK_TOKEN
-peerlink connect --name my-laptop
+peerlink connect --hub http://127.0.0.1:8000 --name my-laptop --code <配对码>
+peerlink skill-install
+peerlink catalog
 peerlink project-add my-project /absolute/path/to/project --runtime mock
-unset PEERLINK_TOKEN
 peerlink work
 ```
 
-将路径替换为真实的项目目录，并保持 `peerlink work` 运行。**Mock 仅演示协作流程，不读取项目文件，也不调用模型。**
+管理员先在网页的“云端项目目录”建立项目。每位成员配对后用 `catalog` 查看目录，再将自己电脑上的对应路径逐个绑定。成员可用 `peerlink project-propose <id> '<说明>'` 申请新项目，管理员批准后才能绑定。**Mock 仅演示协作流程。**
 
 ### 3. 体验审批流程
 

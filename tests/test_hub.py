@@ -24,6 +24,10 @@ def setup(tmp_path):
     app.state.store.approve_user("alex")
     app.state.store.approve_user("bob")
     app.state.store.approve_user("carol")
+    with app.state.store.connect() as conn:
+        conn.execute("UPDATE users SET is_admin=1 WHERE id='alex'")
+        conn.execute("INSERT INTO project_catalog VALUES (?,?,?,?,?)",
+                     ("recommendation", "Recommendation project", "ACTIVE", "alex", time.time()))
     headers = {name: {"Authorization": "Bearer " + token} for name, token in tokens.items()}
     device = client.post("/api/devices", headers=headers["bob"], json={"name": "bob-mac"}).json()
     headers["device"] = {"Authorization": "Bearer " + device["token"]}
@@ -58,6 +62,14 @@ def test_registration_requires_admin_approval(tmp_path):
     assert client.get("/api/me").status_code == 401
 
 
+def test_password_admin_can_log_in(tmp_path):
+    app = create_app(tmp_path / "hub.db")
+    app.state.store.create_admin_password("owner.1", "a-secure-password")
+    client = TestClient(app, base_url="https://testserver")
+    assert client.post("/api/login", json={
+        "username": "owner.1", "password": "a-secure-password"}).status_code == 200
+
+
 def test_rejected_registration_is_removed(tmp_path):
     app = create_app(tmp_path / "hub.db")
     client = TestClient(app)
@@ -84,6 +96,51 @@ def test_registration_accepts_erp_with_dot(tmp_path):
     assert response.status_code == 200
     assert response.json()["username"] == "yujunjie.50"
     assert client.post("/api/register", json={"username": "项目成员", "password": "a-secure-password"}).status_code == 422
+
+
+def test_pairing_code_binds_one_device_and_expires_after_use(tmp_path):
+    app = create_app(tmp_path / "hub.db")
+    app.state.store.request_registration("dylan", "a-secure-password")
+    app.state.store.approve_user("dylan")
+    client = TestClient(app, base_url="https://testserver")
+    assert client.post("/api/login", json={"username": "dylan", "password": "a-secure-password"}).status_code == 200
+    code = client.post("/api/pairing-codes").json()["code"]
+    paired = client.post("/api/device-pair", json={"name": "dylan-mac", "code": code})
+    assert paired.status_code == 200
+    assert paired.json()["owner"] == "dylan"
+    assert client.post("/api/device-pair", json={"name": "second", "code": code}).status_code == 401
+    headers = {"Authorization": "Bearer " + paired.json()["token"]}
+    assert client.get("/api/peers", headers=headers).status_code == 200
+
+
+def test_admin_seeds_catalog_and_member_proposal_requires_approval(tmp_path):
+    app = create_app(tmp_path / "hub.db")
+    app.state.store.create_admin_password("owner", "a-secure-password")
+    app.state.store.request_registration("member", "another-secure-password")
+    app.state.store.approve_user("member")
+    admin = TestClient(app, base_url="https://testserver")
+    member = TestClient(app, base_url="https://testserver")
+    assert admin.post("/api/login", json={"username": "owner", "password": "a-secure-password"}).status_code == 200
+    assert member.post("/api/login", json={"username": "member", "password": "another-secure-password"}).status_code == 200
+    seeded = admin.post("/api/catalog/projects", json={"id": "core", "description": "Core project"})
+    assert seeded.json()["status"] == "ACTIVE"
+    proposed = member.post("/api/catalog/projects", json={"id": "new-tool", "description": "New tool"})
+    assert proposed.json()["status"] == "PENDING"
+    rows = admin.get("/api/catalog/projects").json()
+    assert {row["id"]: row["status"] for row in rows} == {"core": "ACTIVE", "new-tool": "PENDING"}
+    assert admin.post("/api/admin/catalog/projects/new-tool/decision",
+                      json={"action": "approve"}).json()["status"] == "ACTIVE"
+
+
+def test_device_can_only_bind_active_catalog_project(tmp_path):
+    app = create_app(tmp_path / "hub.db")
+    token = app.state.store.create_admin("owner")
+    client = TestClient(app)
+    device = client.post("/api/devices", headers={"Authorization": "Bearer " + token},
+                         json={"name": "mac"}).json()
+    headers = {"Authorization": "Bearer " + device["token"]}
+    body = {"id": "unknown", "path": "/tmp/project", "description": "x", "runtime": "mock"}
+    assert client.put("/api/projects", headers=headers, json=body).status_code == 403
 
 
 def test_pending_user_is_not_discoverable(tmp_path):
@@ -169,7 +226,21 @@ def test_private_paths_and_requests(setup):
     request_id = question(client, headers)
     assert client.get(f"/api/requests/{request_id}", headers=headers["carol"]).status_code == 403
     assert client.get("/api/requests").status_code == 401
-    assert client.get("/api/requests", headers=headers["device"]).status_code == 403
+    assert client.get("/api/requests", headers=headers["device"]).status_code == 200
+
+
+def test_device_can_send_and_cancel_but_cannot_approve(setup):
+    app, client, headers, device = setup
+    result = client.post("/api/requests", headers=headers["device"], json={
+        "receiver": "alex", "project": "missing", "question": "hello"})
+    assert result.status_code == 404
+    request_id = question(client, headers)
+    assert client.post(f"/api/requests/{request_id}/decision", headers=headers["device"],
+                       json={"action": "approve"}).status_code == 403
+    own = client.post("/api/requests", headers=headers["device"], json={
+        "receiver": "bob", "project": "recommendation", "question": "self check"}).json()
+    assert client.post(f"/api/requests/{own['id']}/decision", headers=headers["device"],
+                       json={"action": "cancel"}).status_code == 200
 
 
 def test_claim_is_atomic(setup):

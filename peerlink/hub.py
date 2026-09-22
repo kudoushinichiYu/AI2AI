@@ -58,6 +58,10 @@ class Store:
                     path TEXT NOT NULL, description TEXT NOT NULL, runtime TEXT NOT NULL,
                     PRIMARY KEY(owner, id)
                 );
+                CREATE TABLE IF NOT EXISTS project_catalog (
+                    id TEXT PRIMARY KEY, description TEXT NOT NULL,
+                    status TEXT NOT NULL, created_by TEXT NOT NULL, created REAL NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS requests (
                     id TEXT PRIMARY KEY, sender TEXT NOT NULL, receiver TEXT NOT NULL,
                     project TEXT NOT NULL, device TEXT NOT NULL, question TEXT NOT NULL,
@@ -70,6 +74,10 @@ class Store:
                 );
                 CREATE TABLE IF NOT EXISTS sessions (
                     token TEXT PRIMARY KEY, owner TEXT NOT NULL,
+                    expires REAL NOT NULL, created REAL NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS pairing_codes (
+                    code TEXT PRIMARY KEY, owner TEXT NOT NULL,
                     expires REAL NOT NULL, created REAL NOT NULL
                 );
             """)
@@ -91,6 +99,9 @@ class Store:
             conn.execute("UPDATE users SET status='ACTIVE' WHERE status=''")
             conn.execute("UPDATE users SET is_admin=1 "
                          "WHERE id=(SELECT id FROM users ORDER BY created,rowid LIMIT 1)")
+            conn.execute("INSERT OR IGNORE INTO project_catalog(id,description,status,created_by,created) "
+                         "SELECT id,MAX(description),'ACTIVE',MIN(owner),? FROM projects GROUP BY id",
+                         (time.time(),))
 
     @contextmanager
     def connect(self):
@@ -134,6 +145,14 @@ class Store:
                          (name, digest(token), "ACTIVE", 1, time.time()))
         return token
 
+    def create_admin_password(self, name, password):
+        with self.connect() as conn:
+            if conn.execute("SELECT 1 FROM users WHERE id=?", (name,)).fetchone():
+                raise ValueError("用户已存在")
+            conn.execute("INSERT INTO users(id,token,status,is_admin,created,credential_kind,password_hash) "
+                         "VALUES (?,?,?,?,?,?,?)", (name, digest(secrets.token_urlsafe(32)),
+                         "ACTIVE", 1, time.time(), "PASSWORD", password_hash(password)))
+
     def approve_user(self, name):
         with self.connect() as conn:
             row = conn.execute("SELECT status FROM users WHERE id=?", (name,)).fetchone()
@@ -157,11 +176,24 @@ class DeviceInput(BaseModel):
     name: str = Field(min_length=1, max_length=100)
 
 
+class PairDeviceInput(DeviceInput):
+    code: str = Field(min_length=8, max_length=200)
+
+
 class ProjectInput(BaseModel):
     id: str = Field(pattern=r"^[a-zA-Z0-9_-]{1,80}$")
     path: str = Field(min_length=1, max_length=2000)
     description: str = Field(default="", max_length=1000)
     runtime: Literal["mock", "codex-docker"] = "mock"
+
+
+class CatalogProjectInput(BaseModel):
+    id: str = Field(pattern=r"^[a-zA-Z0-9_-]{1,80}$")
+    description: str = Field(min_length=1, max_length=1000)
+
+
+class CatalogDecisionInput(BaseModel):
+    action: Literal["approve", "reject"]
 
 
 class QuestionInput(BaseModel):
@@ -221,6 +253,9 @@ def create_app(db_path=None):
             raise HTTPException(403, "需要用户凭证，设备不能代替用户审批")
         return current
 
+    def member(current=Depends(actor)):
+        return current
+
     def device(current=Depends(actor)):
         if current["kind"] != "device":
             raise HTTPException(403, "需要设备凭证")
@@ -262,6 +297,15 @@ def create_app(db_path=None):
     @app.get("/app.js", include_in_schema=False)
     def javascript():
         return FileResponse(Path(__file__).parent / "static/app.js")
+
+    @app.get("/downloads/peerlink-0.1.0-py3-none-any.whl", include_in_schema=False)
+    def client_package():
+        default = Path(store.path).resolve().parent.parent / "downloads" / "peerlink-0.1.0-py3-none-any.whl"
+        package = Path(os.environ.get("PEERLINK_CLIENT_PACKAGE", default))
+        if not package.is_file():
+            raise HTTPException(404, "客户端安装包尚未发布")
+        return FileResponse(package, media_type="application/zip",
+                            filename="peerlink-0.1.0-py3-none-any.whl")
 
     @app.get("/health")
     def health():
@@ -327,7 +371,7 @@ def create_app(db_path=None):
         return {"username": username, "status": "ACTIVE" if body.action == "approve" else "REMOVED"}
 
     @app.get("/api/peers")
-    def peers(current=Depends(user)):
+    def peers(current=Depends(member)):
         with store.connect() as conn:
             return [row["id"] for row in conn.execute(
                 "SELECT id FROM users WHERE status='ACTIVE' ORDER BY id")]
@@ -339,6 +383,30 @@ def create_app(db_path=None):
             conn.execute("INSERT INTO devices VALUES (?,?,?,?,?)",
                          (device_id, current["owner"], body.name, digest(token), time.time()))
         return {"id": device_id, "token": token, "owner": current["owner"]}
+
+    @app.post("/api/pairing-codes")
+    def create_pairing_code(current=Depends(user)):
+        code = secrets.token_urlsafe(18)
+        now = time.time()
+        with store.connect() as conn:
+            conn.execute("DELETE FROM pairing_codes WHERE expires<=? OR owner=?", (now, current["owner"]))
+            conn.execute("INSERT INTO pairing_codes VALUES (?,?,?,?)",
+                         (digest(code), current["owner"], now + 600, now))
+        return {"code": code, "expires_in": 600}
+
+    @app.post("/api/device-pair")
+    def pair_device(body: PairDeviceInput):
+        token, device_id, now = secrets.token_urlsafe(32), secrets.token_hex(12), time.time()
+        with store.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute("SELECT owner FROM pairing_codes WHERE code=? AND expires>?",
+                               (digest(body.code), now)).fetchone()
+            if not row:
+                raise HTTPException(401, "配对码无效或已过期")
+            conn.execute("DELETE FROM pairing_codes WHERE code=?", (digest(body.code),))
+            conn.execute("INSERT INTO devices VALUES (?,?,?,?,?)",
+                         (device_id, row["owner"], body.name, digest(token), now))
+        return {"id": device_id, "token": token, "owner": row["owner"]}
 
     @app.get("/api/devices")
     def devices(current=Depends(user)):
@@ -357,10 +425,55 @@ def create_app(db_path=None):
                          (device_id, current["owner"]))
         return {"ok": True}
 
+    @app.get("/api/catalog/projects")
+    def catalog_projects(current=Depends(member)):
+        with store.connect() as conn:
+            role = conn.execute("SELECT is_admin FROM users WHERE id=?", (current["owner"],)).fetchone()
+            if role and role[0]:
+                rows = conn.execute("SELECT id,description,status,created_by,created FROM project_catalog "
+                                    "ORDER BY CASE WHEN status='PENDING' THEN 0 ELSE 1 END,created,id")
+            else:
+                rows = conn.execute("SELECT id,description,status,created_by,created FROM project_catalog "
+                                    "WHERE status='ACTIVE' OR created_by=? ORDER BY created,id",
+                                    (current["owner"],))
+            return [dict(row) for row in rows]
+
+    @app.post("/api/catalog/projects")
+    def add_catalog_project(body: CatalogProjectInput, current=Depends(user)):
+        with store.connect() as conn:
+            role = conn.execute("SELECT is_admin FROM users WHERE id=?", (current["owner"],)).fetchone()
+            status = "ACTIVE" if role and role[0] else "PENDING"
+            try:
+                conn.execute("INSERT INTO project_catalog VALUES (?,?,?,?,?)",
+                             (body.id, body.description, status, current["owner"], time.time()))
+            except sqlite3.IntegrityError as error:
+                raise HTTPException(409, "项目标识已存在") from error
+        return {"id": body.id, "status": status}
+
+    @app.post("/api/admin/catalog/projects/{project_id}/decision")
+    def decide_catalog_project(project_id: str, body: CatalogDecisionInput, current=Depends(admin)):
+        with store.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute("SELECT status FROM project_catalog WHERE id=?", (project_id,)).fetchone()
+            if not row:
+                raise HTTPException(404, "项目不存在")
+            if row["status"] != "PENDING":
+                raise HTTPException(409, "项目不在待审批状态")
+            if body.action == "approve":
+                conn.execute("UPDATE project_catalog SET status='ACTIVE' WHERE id=?", (project_id,))
+                status = "ACTIVE"
+            else:
+                conn.execute("DELETE FROM project_catalog WHERE id=?", (project_id,))
+                status = "REMOVED"
+        return {"id": project_id, "status": status}
+
     @app.put("/api/projects")
     def register_project(body: ProjectInput, current=Depends(device)):
         with store.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
+            catalog = conn.execute("SELECT status FROM project_catalog WHERE id=?", (body.id,)).fetchone()
+            if not catalog or catalog["status"] != "ACTIVE":
+                raise HTTPException(403, "项目尚未加入云端目录或未经管理员批准")
             row = conn.execute("SELECT * FROM projects WHERE owner=? AND id=?",
                                (current["owner"], body.id)).fetchone()
             if row and row["device"] != current["id"]:
@@ -383,7 +496,7 @@ def create_app(db_path=None):
         return {"ok": True}
 
     @app.get("/api/projects")
-    def projects(owner: str, current=Depends(user)):
+    def projects(owner: str, current=Depends(member)):
         columns = "id,description,runtime,device"
         if owner == current["owner"]:
             columns += ",path"
@@ -392,7 +505,7 @@ def create_app(db_path=None):
                 "SELECT " + columns + " FROM projects WHERE owner=?", (owner,))]
 
     @app.post("/api/requests")
-    def ask(body: QuestionInput, current=Depends(user)):
+    def ask(body: QuestionInput, current=Depends(member)):
         request_id = secrets.token_hex(12)
         with store.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
@@ -407,7 +520,7 @@ def create_app(db_path=None):
         return {"id": request_id, "status": "WAITING_APPROVAL"}
 
     @app.get("/api/requests")
-    def requests(current=Depends(user)):
+    def requests(current=Depends(member)):
         with store.connect() as conn:
             expire(conn)
             rows = conn.execute("SELECT id,sender,receiver,project,question,status,created,response,error "
@@ -416,7 +529,7 @@ def create_app(db_path=None):
             return [dict(row) for row in rows]
 
     @app.get("/api/requests/{request_id}")
-    def get_request(request_id: str, current=Depends(user)):
+    def get_request(request_id: str, current=Depends(member)):
         with store.connect() as conn:
             expire(conn)
             row = dict(load(conn, request_id))
@@ -427,7 +540,7 @@ def create_app(db_path=None):
             return row
 
     @app.post("/api/requests/{request_id}/decision")
-    def decision(request_id: str, body: DecisionInput, current=Depends(user)):
+    def decision(request_id: str, body: DecisionInput, current=Depends(actor)):
         with store.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             row = load(conn, request_id)
@@ -438,6 +551,8 @@ def create_app(db_path=None):
                     raise HTTPException(409, "任务已结束")
                 status = "CANCELLED"
             else:
+                if current["kind"] != "user":
+                    raise HTTPException(403, "设备不能代替用户审批")
                 if row["receiver"] != current["owner"]:
                     raise HTTPException(403, "仅接收方可审批")
                 if row["status"] != "WAITING_APPROVAL":

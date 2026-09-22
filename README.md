@@ -47,23 +47,21 @@ peerlink init-admin your-username
 peerlink hub
 ```
 
-Replace `your-username` with an actual username. `init-admin` creates the first administrator and prints its Token once: keep it private. Open [localhost:8000](http://127.0.0.1:8000) and sign in with that Token. Other members can register on the web page; after the administrator approves the request, they sign in with the Token shown when they registered.
+Replace `your-username` with an actual username. `init-admin` securely prompts for a password. Open [localhost:8000](http://127.0.0.1:8000) and sign in with the username and password. Other members register on the web page and can sign in after administrator approval.
 
 ### 2. Connect a project
 
-In another terminal, activate the same virtual environment. Set the Hub address and enter your Token when `read` waits for input:
+Sign in on the web page, generate a one-time code under **My devices**, then run locally:
 
 ```bash
-export PEERLINK_HUB=http://127.0.0.1:8000
-read -s PEERLINK_TOKEN
-export PEERLINK_TOKEN
-peerlink connect --name my-laptop
+peerlink connect --hub http://127.0.0.1:8000 --name my-laptop --code <pairing-code>
+peerlink skill-install
+peerlink catalog
 peerlink project-add my-project /absolute/path/to/project --runtime mock
-unset PEERLINK_TOKEN
 peerlink work
 ```
 
-Replace the path with an existing project directory. Keep `peerlink work` running. **Mock only demonstrates the collaboration flow; it does not read project files or call a model.**
+Administrators seed the cloud project catalog in the web interface. After pairing, each member uses `catalog` and binds the corresponding local directories on their own computer. Members propose additional catalog entries with `peerlink project-propose <id> '<description>'`; binding is allowed only after administrator approval. **Mock only demonstrates the collaboration flow.**
 
 ### 3. Try the approval flow
 

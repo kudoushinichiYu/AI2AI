@@ -41,14 +41,14 @@ docker compose up -d --build
 docker compose exec hub peerlink init-admin <管理员用户名>
 ```
 
-命令中的 `<管理员用户名>` 是占位符，执行前替换为实际用户名，不保留尖括号。用户名支持字母、数字、下划线和短横线。`init-admin` 会输出一次管理员登录 Token，请妥善保存并只用安全渠道交付。首次使用已有旧数据库时，最早创建的账户会自动升级为管理员。
+命令中的 `<管理员用户名>` 是占位符。用户名支持 ERP 常见的字母、数字、点、下划线和短横线。`init-admin` 会在终端安全提示两次输入密码，不再生成登录 Token。
 
 然后完成访问配置：
 
 - Compose 只向服务器回环地址发布 8000 端口。安装 Caddy/Nginx，参考 `deploy/Caddyfile.example` 配置实验室域名和 HTTPS，再让成员访问该地址。
 - 建议先限制在实验室内网或 VPN 内使用；即使在内网，远程客户端也要求 HTTPS，且不提供关闭 TLS 校验的选项。
 - 向成员提供 **Hub 地址，以及项目源码或安装包的获取方式**。当前尚无公开发布的一键安装器。
-- 成员在浏览器打开 Hub 地址，先输入用户名注册。注册页会显示一次待审批 Token；管理员在“用户管理”中批准后，成员用该 Token 登录。`/docs` 提供接口文档，`/health` 提供健康检查。
+- 成员在浏览器使用 ERP 用户名和密码注册。管理员批准后即可登录，再从“我的设备”生成一次性配对码。
 
 Token 是长期有效的 MVP 凭证，不要提交 Git、截图或粘贴到聊天。页面只在内存保存 Token，刷新后需重新输入。
 
@@ -70,20 +70,18 @@ peerlink hub
 
 ## 2. 成员：安装客户端并连接团队服务
 
-向管理员获取 Hub 地址、自己的 Token 和本仓库。当前本地 Connector 面向 macOS / Linux，需要 Python 3.10+。在自己的电脑上进入仓库根目录安装：
+本地 Connector 面向 macOS / Linux，需要 Python 3.10+。可从 Hub 下载已发布客户端：
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
+python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.1.0-py3-none-any.whl
+peerlink skill-install
 ```
 
-连接团队服务：
+登录网页，在“我的设备”生成 10 分钟有效的一次性配对码，然后连接：
 
 ```bash
-export PEERLINK_HUB=https://<团队服务域名>
-read -s PEERLINK_TOKEN
-export PEERLINK_TOKEN
+peerlink connect --hub https://<团队服务域名> --name <本机设备名称> --code <配对码>
+peerlink catalog
 ```
 
 将 `<团队服务域名>` 替换为管理员提供的实际域名。仅在 Hub 和客户端位于同一台电脑时，使用 `http://127.0.0.1:8000`。`read -s` 后输入自己的 Token 并回车，避免直接写入 shell 历史。
@@ -93,15 +91,13 @@ export PEERLINK_TOKEN
 **希望别人向自己的项目提问**：继续注册设备及愿意开放协作的项目：
 
 ```bash
-peerlink connect --name <本机设备名称>
 peerlink project-add <项目标识> /实际/项目/绝对路径 --runtime mock --description '项目简介'
-unset PEERLINK_TOKEN
 peerlink work
 ```
 
-请替换命令中的设备名称、项目标识和路径；项目标识支持字母、数字、下划线和短横线。这里使用 `mock` 验证连接和审批，不生成真实项目分析；接入真实 Codex 见第 5 节。
+管理员在网页冷启动项目目录；每位成员的 Codex 读取 `catalog` 后，对本人明确确认的项目上传“项目标识→本地绝对路径”绑定，不上传仓库内容。本机不存在的项目可跳过。新项目先用 `peerlink project-propose <id> '<说明>'` 申请，批准前无法绑定。
 
-状态默认位于 `~/.peerlink`，可用命令前的 `--state /独立/目录` 或 `PEERLINK_STATE` 修改。初次注册后只保存设备 Token，不保存用户 Token。配置文件权限为 600，新建状态目录权限为 700。`unset PEERLINK_TOKEN` 不影响 Connector 运行，之后若要用 CLI 提问，需要重新配置自己的用户 Token。
+状态默认位于 `~/.peerlink`。配对后只保存可单独撤销的设备凭证，不保存账号密码。该设备凭证可用于提问和查收回复，但不能代替用户审批请求。
 
 **`work` 需要持续运行**，团队部署了服务器并不意味着服务器可以直接启动成员电脑上的 Agent。当前先在终端运行；后续可用 macOS launchd / Linux systemd 托管，Skill 本身不是后台服务。设备离线时，已批准请求等待该设备上线。设备令牌可以由本人通过 `DELETE /api/devices/{id}` 撤销。
 
@@ -111,7 +107,7 @@ peerlink work
 
 ### 提问方：向其他成员的项目提问
 
-在页面选择成员和项目后提问，或者在配置 Hub 地址和自己的 `PEERLINK_TOKEN` 后调用：
+在页面选择成员和项目后提问，或者在已配对的电脑上调用：
 
 ```bash
 peerlink peers
@@ -142,18 +138,13 @@ Hub 只收到“等待答案确认”状态，**未确认草稿不上传**。本
 
 ## 4. 安装 Skill
 
-先确保 `peerlink` 在目标 Agent 的 PATH 中，并以安全方式为其配置 Hub URL 和自己的用户 Token。用户明确需要跨个人提问时才使用该凭证；不要把 Token 写入 Skill。
-
-Codex 用户可将仓库的 `skills/peerlink` 文件夹复制到自己的 Skill 目录：
+Peerlink 客户端包含 Codex Skill，安装客户端后执行：
 
 ```bash
-mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
-cp -R skills/peerlink "${CODEX_HOME:-$HOME/.codex}/skills/"
+peerlink skill-install
 ```
 
-若同名 Skill 已存在，先自行确认覆盖范围。重新加载 Agent 后，可指定实际成员和项目，例如：“通过 Peerlink，向项目负责人询问这个研究项目的实验设置。”Skill 会先查询成员及已注册项目，无法确定目标时需要补充信息。安装 Skill 不会自动安装 Python 包、取得凭证、注册设备或启动 Connector。
-
-后续插件可把 CLI/Skill、安装引导和后台服务管理打包在一起。当前交付的是 Skill 源文件和 Python 包源码，**不是已发布插件或一键安装器**。
+重新加载 Codex 后，可直接说“通过 Peerlink 向某成员的某项目提问”或“查看 Peerlink 回复”。Skill 使用已配对设备的凭证，不保存账号密码，也不能替本人审批或发送草稿。
 
 ## 5. 真实 Codex 接入（实验性）
 

@@ -37,6 +37,12 @@ def test_private_state_permissions(tmp_path):
     assert path.stat().st_mode & 0o777 == 0o600
 
 
+def test_bundled_skill_is_packaged():
+    root = Path(__file__).parents[1] / "peerlink" / "bundled_skill"
+    assert (root / "SKILL.md").is_file()
+    assert (root / "agents" / "openai.yaml").is_file()
+
+
 def test_mock_is_explicit_and_does_not_read_project(tmp_path):
     answer = run_runtime({"id": "demo", "path": "/does/not/exist", "runtime": "mock"}, "问题", tmp_path / "pending")
     assert "MOCK" in answer
@@ -66,6 +72,9 @@ def test_real_http_cli_connector_roundtrip(tmp_path):
     alex, bob = store.register_user("alex"), store.register_user("bob")
     store.approve_user("alex")
     store.approve_user("bob")
+    with store.connect() as conn:
+        conn.execute("INSERT INTO project_catalog VALUES (?,?,?,?,?)",
+                     ("demo", "Demo project", "ACTIVE", "alex", time.time()))
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
@@ -85,7 +94,8 @@ def test_real_http_cli_connector_roundtrip(tmp_path):
                 time.sleep(0.05)
         else:
             pytest.fail("Hub 未启动")
-        cli("connect", "--name", "bob-test")
+        pairing = Client(hub, bob).call("POST", "/api/pairing-codes")
+        cli("connect", "--name", "bob-test", "--hub", hub, "--code", pairing["code"])
         project = tmp_path / "project"
         project.mkdir()
         cli("project-add", "demo", str(project))

@@ -16,7 +16,7 @@ test = ["pytest>=8,<9"]
 peerlink = "peerlink.cli:main"
 
 [tool.setuptools.package-data]
-peerlink = ["static/*"]
+peerlink = ["static/*", "bundled_skill/*", "bundled_skill/agents/*"]
 
 [tool.setuptools.packages.find]
 include = ["peerlink*"]

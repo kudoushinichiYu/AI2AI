@@ -1,0 +1,4 @@
+interface:
+  display_name: "Peerlink"
+  short_description: "Connect Codex to teammates' project agents"
+  default_prompt: "Use Peerlink to send a question, check replies, or share an explicitly approved local project."

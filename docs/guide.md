@@ -43,38 +43,34 @@ Open [localhost:8000](http://127.0.0.1:8000). To simulate additional members, re
 
 ## 2. Install and connect a member's client
 
-The local Connector targets macOS and Linux with Python 3.10+. Obtain the repository, then install it on the member's machine:
+The local Connector targets macOS and Linux with Python 3.10+. Install the published client and its bundled Codex Skill:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
+python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.1.0-py3-none-any.whl
+peerlink skill-install
 ```
 
-Configure the administrator-provided URL and enter your own Token when `read` waits for input:
+Sign in to the web page, generate a ten-minute one-time code under **My devices**, and pair this computer:
 
 ```bash
-export PEERLINK_HUB=https://<team-service-domain>
-read -s PEERLINK_TOKEN
-export PEERLINK_TOKEN
+peerlink connect --hub https://<team-service-domain> --name <device-name> --code <pairing-code>
+peerlink catalog
 ```
 
-Use `http://127.0.0.1:8000` only when the Hub runs on the same machine. Entering the Token interactively avoids putting it directly in shell history.
+Use `http://127.0.0.1:8000` only when the Hub runs on the same machine. The pairing code is single-use; the client stores a separately revocable device credential, never the account password.
 
 **Only asking questions?** You can now use the web interface or CLI without registering a device or running a Connector.
 
 **Sharing a project?** Register your device and an explicitly selected project:
 
 ```bash
-peerlink connect --name <device-name>
 peerlink project-add <project-id> /absolute/path/to/project --runtime mock --description 'Project description'
-unset PEERLINK_TOKEN
 peerlink work
 ```
 
-Project IDs accept letters, digits, underscores, and hyphens, up to 80 characters. The directory must exist. Mock validates the coordination flow only; it does not read the project or call a model. See [real Codex execution](#5-real-codex-execution-experimental) for the experimental adapter.
+Administrators seed the cloud catalog. Each member's Codex reads `catalog` and uploads only explicitly confirmed project-to-local-path bindings, not repository contents; missing projects may be skipped. Members use `peerlink project-propose <id> '<description>'` for new entries and cannot bind them before administrator approval. See [real Codex execution](#5-real-codex-execution-experimental) for the experimental adapter.
 
-State defaults to `~/.peerlink`. Override it with `PEERLINK_STATE` or `peerlink --state /path/to/state ...`. Newly created state directories use mode 700 and configuration files use mode 600. Registration stores a device Token, not the user Token. Clearing `PEERLINK_TOKEN` does not stop the Connector, but subsequent user-level CLI requests need it configured again.
+State defaults to `~/.peerlink`. Override it with `PEERLINK_STATE` or `peerlink --state /path/to/state ...`. Newly created state directories use mode 700 and configuration files use mode 600. The device credential can send questions and retrieve replies for its owner, but cannot approve incoming execution.
 
 Keep `peerlink work` running. Approved requests wait when the assigned device is offline; the server cannot start an agent on a disconnected machine. Background installation is not automated yet. A future launchd/systemd integration is separate from the Skill.
 
@@ -84,7 +80,7 @@ Each user/project pair currently maps to one device. Before changing its directo
 
 ### Requester
 
-Choose a member and project in the web interface, or configure your Hub URL and user Token and run:
+Choose a member and project in the web interface, or run from a paired computer:
 
 ```bash
 peerlink peers
@@ -120,16 +116,13 @@ The requester retrieves the approved answer through the web interface or `peerli
 
 ## 4. Install the Codex Skill
 
-Ensure `peerlink` is on the target agent's PATH and securely configure the Hub URL and that user's Token. Never embed Tokens in a Skill file. From the repository root:
+The published client bundles the Codex Skill. After installing the client, run:
 
 ```bash
-mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
-cp -R skills/peerlink "${CODEX_HOME:-$HOME/.codex}/skills/"
+peerlink skill-install
 ```
 
-Review any existing same-named Skill before replacing it. Reload the agent, then ask it to use Peerlink to contact a specific member about a registered project. The Skill guides project discovery, request submission, and progress checks through the CLI. It must not approve execution or send answers on the owner's behalf without explicit authorization.
-
-Installing the Skill does not install the Python package, provision credentials, register a device, or start a background process. This repository includes Skill and package source, not a published one-click plugin installer. See the [Skill instructions](../skills/peerlink/SKILL.md).
+Reload Codex, then ask it to use Peerlink to contact a member, check replies, or share an explicitly selected project. The Skill uses the paired device credential and never stores the account password. It cannot approve incoming execution or send a draft without the owner's explicit authorization. See the [Skill instructions](../skills/peerlink/SKILL.md).
 
 ## 5. Real Codex execution (experimental)
 
