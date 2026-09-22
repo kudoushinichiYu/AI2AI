@@ -19,7 +19,7 @@
 
 ```bash
 python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.2.0-py3-none-any.whl
-codex plugin marketplace add kudoushinichiYu/AI2AI --ref main
+codex plugin marketplace add kudoushinichiYu/peerlink --ref main
 codex plugin add peerlink@peerlink-team
 ```
 
