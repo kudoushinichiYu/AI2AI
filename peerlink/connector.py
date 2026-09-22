@@ -10,6 +10,7 @@ from pathlib import Path
 import httpx
 
 from peerlink.client import Client
+from peerlink.service import notify
 
 
 def save_json(path, value):
@@ -112,6 +113,34 @@ def keep_leases(state, client, stopped):
         stopped.wait(15)
 
 
+def notify_request_changes(state, config, client):
+    """Notify once for actionable incoming requests and newly completed answers."""
+    path = Path(state) / "notifications.json"
+    try:
+        seen = read_json(path) if path.exists() else {}
+    except (OSError, ValueError, json.JSONDecodeError):
+        seen = {}
+    changed = False
+    requests = client.call("GET", "/api/requests")
+    for item in requests:
+        event = None
+        if item["receiver"] == config["owner"] and item["status"] == "WAITING_APPROVAL":
+            event = "waiting_approval"
+            title = "Peerlink 收到新问题"
+            message = f"{item['sender']} 想询问 {item['project']}，请在 Peerlink 页面审批"
+        elif item["sender"] == config["owner"] and item["status"] == "COMPLETED":
+            event = "completed"
+            title = "Peerlink 已收到回复"
+            message = f"{item['receiver']} 的 {item['project']} 已回复你的问题"
+        if event and seen.get(item["id"]) != event:
+            notify(title, message)
+            seen[item["id"]] = event
+            changed = True
+    if changed:
+        active_ids = {item["id"] for item in requests[:200]}
+        save_json(path, {key: value for key, value in seen.items() if key in active_ids})
+
+
 def work(state, once=False, auth_dir=None):
     state = Path(state)
     config, client = configured(state)
@@ -138,6 +167,7 @@ def work(state, once=False, auth_dir=None):
     try:
         while True:
             try:
+                notify_request_changes(state, config, client)
                 task = client.call("POST", "/api/connector/claim")
                 if task:
                     path = drafts / (task["id"] + ".pending.json")
@@ -153,8 +183,10 @@ def work(state, once=False, auth_dir=None):
                         task["answer"] = answer
                         save_json(path, task)
                         print(f"草稿已保存：{task['id']}；请用 peerlink review 查看并确认。", flush=True)
+                        notify("Peerlink 草稿已就绪", f"{task['project']} 有一条回复等待你审核发送")
                     except Exception as error:
                         print(f"本地任务失败：{type(error).__name__}；未上传错误正文。", flush=True)
+                        notify("Peerlink 任务失败", f"{task.get('project', '未知项目')} 的本地任务未完成")
                         try:
                             client.call("POST", f"/api/connector/{task['id']}/result",
                                         json={"lease": task["lease"], "action": "fail"})

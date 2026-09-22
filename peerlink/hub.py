@@ -226,7 +226,7 @@ class ResultInput(LeaseInput):
 
 def create_app(db_path=None):
     store = Store(db_path or os.environ.get("PEERLINK_DB", ".peerlink/hub.db"))
-    app = FastAPI(title="Peerlink Collaboration", version="0.1.0")
+    app = FastAPI(title="Peerlink Collaboration", version="0.2.0")
     app.state.store = store
 
     def actor(authorization: str = Header(default=""), peerlink_session: str = Cookie(default="")):
@@ -298,14 +298,14 @@ def create_app(db_path=None):
     def javascript():
         return FileResponse(Path(__file__).parent / "static/app.js")
 
-    @app.get("/downloads/peerlink-0.1.0-py3-none-any.whl", include_in_schema=False)
+    @app.get("/downloads/peerlink-0.2.0-py3-none-any.whl", include_in_schema=False)
     def client_package():
-        default = Path(store.path).resolve().parent.parent / "downloads" / "peerlink-0.1.0-py3-none-any.whl"
+        default = Path(store.path).resolve().parent.parent / "downloads" / "peerlink-0.2.0-py3-none-any.whl"
         package = Path(os.environ.get("PEERLINK_CLIENT_PACKAGE", default))
         if not package.is_file():
             raise HTTPException(404, "客户端安装包尚未发布")
         return FileResponse(package, media_type="application/zip",
-                            filename="peerlink-0.1.0-py3-none-any.whl")
+                            filename="peerlink-0.2.0-py3-none-any.whl")
 
     @app.get("/health")
     def health():

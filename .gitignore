@@ -6,5 +6,6 @@ __pycache__/
 *.db
 *.db-*
 .env
+.DS_Store
 dist/
 build/

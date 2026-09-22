@@ -8,6 +8,7 @@ from pathlib import Path
 
 from peerlink.client import Client
 from peerlink.connector import configured, review, save_json, work
+from peerlink.service import install_service, remove_service, service_status
 
 
 def main():
@@ -39,6 +40,10 @@ def main():
     worker = sub.add_parser("work")
     worker.add_argument("--once", action="store_true")
     worker.add_argument("--auth-dir")
+    service_install = sub.add_parser("service-install")
+    service_install.add_argument("--auth-dir")
+    sub.add_parser("service-status")
+    sub.add_parser("service-remove")
     inspect = sub.add_parser("review")
     inspect.add_argument("id", nargs="?")
     actions = inspect.add_mutually_exclusive_group()
@@ -91,6 +96,17 @@ def main():
         return
     if args.command == "work":
         work(state, args.once, args.auth_dir)
+        return
+    if args.command == "service-install":
+        target = install_service(state, args.auth_dir)
+        print(f"Peerlink 后台 Connector 已安装并启动：{target}")
+        return
+    if args.command == "service-status":
+        print(json.dumps(service_status(), ensure_ascii=False, indent=2))
+        return
+    if args.command == "service-remove":
+        target = remove_service()
+        print(f"Peerlink 后台 Connector 已停止并移除：{target}")
         return
     if args.command == "review":
         review(state, args.id, "send" if args.send else "reject" if args.reject else None, args.answer_file)

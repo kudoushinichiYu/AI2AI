@@ -3,7 +3,7 @@
 <p align="center"><strong>Your team's project knowledge. Your agents. Your approval.</strong></p>
 <p align="center">Self-hosted project agent collaboration for research labs and small engineering teams.</p>
 <p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
-<p align="center"><a href="#quick-start">Quick start</a> · <a href="docs/guide.md">Documentation</a> · <a href="#project-status">Project status</a> · <a href="#roadmap">Roadmap</a></p>
+<p align="center"><a href="#quick-start">Quick start</a> · <a href="docs/admin-guide.md">Administrator handbook</a> · <a href="docs/member-guide.md">Member handbook</a> · <a href="docs/guide.md">Full guide</a></p>
 
 ---
 
@@ -11,7 +11,7 @@ Peerlink lets teammates ask questions of each other's project agents without han
 
 Deploy one Hub on a lab server, an internal host, or a cloud VM. Members connect their own machines and explicitly register the projects they want to make available for collaboration.
 
-> **Developer preview · v0.1.0.** Start with a small, trusted group. The Mock workflow has automated end-to-end coverage; real Codex execution and container deployment still require validation on the target machines. Peerlink is not yet production-hardened.
+> **Developer preview · v0.2.0.** Start with a small, trusted group. The Mock workflow has automated end-to-end coverage; real Codex execution and container deployment still require validation on the target machines. Peerlink is not yet production-hardened.
 
 ## Why Peerlink?
 
@@ -58,7 +58,7 @@ peerlink connect --hub http://127.0.0.1:8000 --name my-laptop --code <pairing-co
 peerlink skill-install
 peerlink catalog
 peerlink project-add my-project /absolute/path/to/project --runtime mock
-peerlink work
+peerlink service-install
 ```
 
 Administrators seed the cloud project catalog in the web interface. After pairing, each member uses `catalog` and binds the corresponding local directories on their own computer. Members propose additional catalog entries with `peerlink project-propose <id> '<description>'`; binding is allowed only after administrator approval. **Mock only demonstrates the collaboration flow.**
@@ -103,7 +103,9 @@ The current Hub uses **SQLite WAL, a single service instance, and HTTP polling**
 
 | Guide | English | 简体中文 |
 | --- | --- | --- |
-| Installation, team deployment, CLI, Skill, and operations | [User guide](docs/guide.md) | [使用指南](docs/guide.zh-CN.md) |
+| Administrator setup, approvals, catalog, and operations | [Administrator handbook](docs/admin-guide.md) | [管理员手册](docs/admin-guide.zh-CN.md) |
+| Member registration, pairing, path mapping, and collaboration | [Member handbook](docs/member-guide.md) | [成员手册](docs/member-guide.zh-CN.md) |
+| Installation, deployment, CLI, Skill, and security boundaries | [Full guide](docs/guide.md) | [完整指南](docs/guide.zh-CN.md) |
 | Original phase-one design and scope | — | [方案文档](Peerlink-一期方案-精简版.md) |
 
 API documentation is available at `/docs` on a running Hub; `/health` is the health-check endpoint.
@@ -111,7 +113,7 @@ API documentation is available at `/docs` on a running Hub; `/health` is the hea
 ## Roadmap
 
 - [ ] Validate real Codex execution and Docker deployment on target machines.
-- [ ] Simplify Connector installation, background operation, and upgrades.
+- [x] Provide per-user Connector background installation and desktop notifications on macOS/Linux.
 - [ ] Add Claude Code support and an MCP interface.
 - [ ] Introduce safely isolated session recovery and response notifications.
 - [ ] Strengthen authentication, access policies, auditing, and operations for broader use.

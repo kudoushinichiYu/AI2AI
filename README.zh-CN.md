@@ -3,7 +3,7 @@
 <p align="center"><strong>让项目知识参与协作，让访问与分享由本人决定。</strong></p>
 <p align="center">面向研究实验室与小型研发团队的自托管项目 Agent 协作工具。</p>
 <p align="center"><a href="README.md">English</a> · <strong>简体中文</strong></p>
-<p align="center"><a href="#快速开始">快速开始</a> · <a href="docs/guide.zh-CN.md">使用文档</a> · <a href="#项目状态">项目状态</a> · <a href="#路线图">路线图</a></p>
+<p align="center"><a href="#快速开始">快速开始</a> · <a href="docs/admin-guide.zh-CN.md">管理员手册</a> · <a href="docs/member-guide.zh-CN.md">成员手册</a> · <a href="docs/guide.zh-CN.md">完整指南</a></p>
 
 ---
 
@@ -11,7 +11,7 @@ Peerlink 让团队成员可以向彼此的项目 Agent 提问，而不必开放�
 
 在实验室服务器、团队内网主机或云服务器上部署一套 Hub，成员连接自己的电脑，并显式注册愿意参与协作的项目即可。
 
-> **开发者预览版 · v0.1.0。** 建议先在小规模受信任团队中试用。Mock 流程已有自动化端到端测试；真实 Codex 执行和容器部署仍需在目标机器上验证。当前版本尚未完成生产级加固。
+> **开发者预览版 · v0.2.0。** 建议先在小规模受信任团队中试用。Mock 流程已有自动化端到端测试；真实 Codex 执行和容器部署仍需在目标机器上验证。当前版本尚未完成生产级加固。
 
 ## 为什么使用 Peerlink？
 
@@ -58,7 +58,7 @@ peerlink connect --hub http://127.0.0.1:8000 --name my-laptop --code <配对码>
 peerlink skill-install
 peerlink catalog
 peerlink project-add my-project /absolute/path/to/project --runtime mock
-peerlink work
+peerlink service-install
 ```
 
 管理员先在网页的“云端项目目录”建立项目。每位成员配对后用 `catalog` 查看目录，再将自己电脑上的对应路径逐个绑定。成员可用 `peerlink project-propose <id> '<说明>'` 申请新项目，管理员批准后才能绑定。**Mock 仅演示协作流程。**
@@ -103,7 +103,9 @@ peerlink review REQUEST_ID --send
 
 | 文档 | English | 简体中文 |
 | --- | --- | --- |
-| 安装、团队部署、CLI、Skill 与运维 | [User guide](docs/guide.md) | [使用指南](docs/guide.zh-CN.md) |
+| 管理员：初始化、审批、项目目录与运维 | [Administrator handbook](docs/admin-guide.md) | [管理员手册](docs/admin-guide.zh-CN.md) |
+| 成员：注册、配对、路径绑定与协作 | [Member handbook](docs/member-guide.md) | [成员手册](docs/member-guide.zh-CN.md) |
+| 安装、团队部署、CLI、Skill 与安全边界 | [Full guide](docs/guide.md) | [完整指南](docs/guide.zh-CN.md) |
 | 原始一期设计与范围 | — | [方案文档](Peerlink-一期方案-精简版.md) |
 
 运行 Hub 后，`/docs` 提供 API 文档，`/health` 提供健康检查。
@@ -111,7 +113,7 @@ peerlink review REQUEST_ID --send
 ## 路线图
 
 - [ ] 在目标机器上验证真实 Codex 执行与 Docker 部署。
-- [ ] 简化 Connector 安装、后台运行与升级。
+- [x] 提供 macOS/Linux 用户级 Connector 后台安装与系统通知。
 - [ ] 增加 Claude Code 支持与 MCP 接口。
 - [ ] 增加具备安全隔离的会话恢复与回复通知。
 - [ ] 完善认证、访问策略、审计和运维能力，支持更广泛的使用。

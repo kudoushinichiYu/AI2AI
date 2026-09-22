@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from peerlink.client import Client
-from peerlink.connector import run_runtime, save_json, validate_project
+from peerlink.connector import notify_request_changes, run_runtime, save_json, validate_project
 from peerlink.hub import Store
 
 
@@ -63,6 +63,27 @@ def test_codex_mount_options_cannot_be_injected(tmp_path):
     (tmp_path / "auth.json").write_text("{}")
     with pytest.raises(ValueError, match="逗号"):
         run_runtime({"runtime": "codex-docker", "path": "/project,readonly=false"}, "问题", tmp_path / "pending", tmp_path)
+
+
+def test_request_notifications_are_deduplicated(tmp_path, monkeypatch):
+    rows = [{
+        "id": "a" * 24, "sender": "alex", "receiver": "bob", "project": "demo",
+        "question": "question", "status": "WAITING_APPROVAL",
+    }]
+
+    class FakeClient:
+        def call(self, method, path):
+            assert (method, path) == ("GET", "/api/requests")
+            return rows
+
+    messages = []
+    monkeypatch.setattr("peerlink.connector.notify", lambda title, message: messages.append((title, message)))
+    config = {"owner": "bob"}
+    notify_request_changes(tmp_path, config, FakeClient())
+    notify_request_changes(tmp_path, config, FakeClient())
+    assert len(messages) == 1
+    assert "alex" in messages[0][1]
+    assert (tmp_path / "notifications.json").stat().st_mode & 0o777 == 0o600
 
 
 def test_real_http_cli_connector_roundtrip(tmp_path):

@@ -1,6 +1,6 @@
 # Peerlink user and deployment guide
 
-**English** | [简体中文](guide.zh-CN.md) · [Project home](../README.md)
+**English** | [简体中文](guide.zh-CN.md) | [Administrator handbook](admin-guide.md) | [Member handbook](member-guide.md) | [Project home](../README.md)
 
 This guide covers shared-server deployment, member setup, collaboration, the Codex Skill, experimental model execution, and operations. Run shell commands from the repository root. Replace values inside angle brackets with actual values before running commands.
 
@@ -46,7 +46,7 @@ Open [localhost:8000](http://127.0.0.1:8000). To simulate additional members, re
 The local Connector targets macOS and Linux with Python 3.10+. Install the published client and its bundled Codex Skill:
 
 ```bash
-python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.1.0-py3-none-any.whl
+python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.2.0-py3-none-any.whl
 peerlink skill-install
 ```
 
@@ -65,14 +65,14 @@ Use `http://127.0.0.1:8000` only when the Hub runs on the same machine. The pair
 
 ```bash
 peerlink project-add <project-id> /absolute/path/to/project --runtime mock --description 'Project description'
-peerlink work
+peerlink service-install
 ```
 
 Administrators seed the cloud catalog. Each member's Codex reads `catalog` and uploads only explicitly confirmed project-to-local-path bindings, not repository contents; missing projects may be skipped. Members use `peerlink project-propose <id> '<description>'` for new entries and cannot bind them before administrator approval. See [real Codex execution](#5-real-codex-execution-experimental) for the experimental adapter.
 
 State defaults to `~/.peerlink`. Override it with `PEERLINK_STATE` or `peerlink --state /path/to/state ...`. Newly created state directories use mode 700 and configuration files use mode 600. The device credential can send questions and retrieve replies for its owner, but cannot approve incoming execution.
 
-Keep `peerlink work` running. Approved requests wait when the assigned device is offline; the server cannot start an agent on a disconnected machine. Background installation is not automated yet. A future launchd/systemd integration is separate from the Skill.
+`service-install` creates a per-user macOS launchd or Linux systemd service that starts at login and shows desktop notifications for approval requests, ready drafts, and completed answers. Check it with `peerlink service-status`. The Hub still cannot bypass owner approval or send an unreviewed draft. Approved requests wait while the assigned device is offline.
 
 Each user/project pair currently maps to one device. Before changing its directory, runtime, or device, run `peerlink project-remove <project-id>`. This cancels outstanding requests for that registration. Register again and request fresh approval. Owners can revoke a device through `DELETE /api/devices/{id}` using their user credentials.
 

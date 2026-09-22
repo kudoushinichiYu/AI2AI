@@ -1,6 +1,6 @@
 # Peerlink 使用与部署指南
 
-[English](guide.md) | **简体中文** · [返回项目首页](../README.zh-CN.md)
+[English](guide.md) | **简体中文** | [管理员手册](admin-guide.zh-CN.md) | [成员手册](member-guide.zh-CN.md) | [返回项目首页](../README.zh-CN.md)
 
 本文包含管理员部署、成员安装、协作流程、Skill、实验性 Codex 接入及运维说明。所有 shell 命令均在仓库根目录执行；带尖括号的参数需要替换为实际值。
 
@@ -24,7 +24,7 @@ Compose 项目名也统一为 `peerlink`。已有 Compose 部署升级时，应�
 - 本地 CLI 和可复制安装的 Skill；无需第一版就实现 MCP，Agent 可通过 CLI 提问及查结果。
 - **Mock Runtime 已提供端到端测试，不读取项目、不调用模型；Codex Docker 适配器需在安装 Docker、配置专用认证后单独验证。**
 
-尚未实现：Claude Code、MCP Server、原会话自动推送、Peer Session 恢复、自动更新/一键后台安装、打包发布的插件。当前每个请求使用独立临时会话，避免不同提问者共享会话造成信息串流。
+尚未实现：Claude Code、MCP Server、原会话自动推送、Peer Session 恢复和自动更新。仓库已提供 Codex 插件源码以及 macOS/Linux 后台 Connector 安装命令。当前每个请求使用独立临时会话，避免不同提问者共享会话造成信息串流。
 
 ## 1. 管理员：部署共享服务
 
@@ -73,7 +73,7 @@ peerlink hub
 本地 Connector 面向 macOS / Linux，需要 Python 3.10+。可从 Hub 下载已发布客户端：
 
 ```bash
-python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.1.0-py3-none-any.whl
+python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.2.0-py3-none-any.whl
 peerlink skill-install
 ```
 
@@ -84,7 +84,7 @@ peerlink connect --hub https://<团队服务域名> --name <本机设备名称> 
 peerlink catalog
 ```
 
-将 `<团队服务域名>` 替换为管理员提供的实际域名。仅在 Hub 和客户端位于同一台电脑时，使用 `http://127.0.0.1:8000`。`read -s` 后输入自己的 Token 并回车，避免直接写入 shell 历史。
+将 `<团队服务域名>` 替换为管理员提供的实际域名。仅在 Hub 和客户端位于同一台电脑时，使用 `http://127.0.0.1:8000`。一次性配对码使用后立即失效，不要把它写入文件或提交到 Git。
 
 **只需要向别人提问**：配置完成后即可使用页面或 CLI，不必注册本地项目，也不必运行 Connector。
 
@@ -92,14 +92,14 @@ peerlink catalog
 
 ```bash
 peerlink project-add <项目标识> /实际/项目/绝对路径 --runtime mock --description '项目简介'
-peerlink work
+peerlink service-install
 ```
 
 管理员在网页冷启动项目目录；每位成员的 Codex 读取 `catalog` 后，对本人明确确认的项目上传“项目标识→本地绝对路径”绑定，不上传仓库内容。本机不存在的项目可跳过。新项目先用 `peerlink project-propose <id> '<说明>'` 申请，批准前无法绑定。
 
 状态默认位于 `~/.peerlink`。配对后只保存可单独撤销的设备凭证，不保存账号密码。该设备凭证可用于提问和查收回复，但不能代替用户审批请求。
 
-**`work` 需要持续运行**，团队部署了服务器并不意味着服务器可以直接启动成员电脑上的 Agent。当前先在终端运行；后续可用 macOS launchd / Linux systemd 托管，Skill 本身不是后台服务。设备离线时，已批准请求等待该设备上线。设备令牌可以由本人通过 `DELETE /api/devices/{id}` 撤销。
+`service-install` 会安装 macOS launchd 或 Linux systemd 用户级服务，登录后自动运行，并在待审批问题、草稿完成和回复完成时弹出系统通知。用 `peerlink service-status` 检查状态。团队服务器仍不能越过本人审批启动 Agent，也不能自动发送未审核草稿。设备离线时，已批准请求等待该设备上线。
 
 一期每个“用户＋项目”绑定一台设备。变更路径、Runtime 或设备前先用 `peerlink project-remove <项目标识>` 撤销，旧请求随之取消，再重新注册和发起请求。
 

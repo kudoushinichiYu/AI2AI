@@ -1,0 +1,20 @@
+{
+  "name": "peerlink-team",
+  "interface": {
+    "displayName": "Peerlink Team"
+  },
+  "plugins": [
+    {
+      "name": "peerlink",
+      "source": {
+        "source": "local",
+        "path": "./plugins/peerlink"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
