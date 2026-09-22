@@ -27,28 +27,27 @@ def setup(tmp_path):
 
 def test_registration_requires_admin_approval(tmp_path):
     app = create_app(tmp_path / "hub.db")
-    client = TestClient(app)
-    result = client.post("/api/register", json={"username": "dylan"}).json()
+    client = TestClient(app, base_url="https://testserver")
+    credentials = {"username": "dylan", "password": "a-secure-password"}
+    result = client.post("/api/register", json=credentials).json()
     assert result["username"] == "dylan"
     assert result["status"] == "PENDING"
     assert "token" not in result
-    receipt = result["receipt"]
-    pending_headers = {"Authorization": "Bearer " + receipt}
-    assert client.get("/api/requests", headers=pending_headers).status_code == 401
+    assert "receipt" not in result
+    assert client.post("/api/login", json=credentials).status_code == 403
 
     admin_token = app.state.store.create_admin("bob")
     admin_headers = {"Authorization": "Bearer " + admin_token}
-    assert client.get("/api/admin/users", headers=pending_headers).status_code == 401
     users = client.get("/api/admin/users", headers=admin_headers).json()
     assert [row["id"] for row in users if row["status"] == "PENDING"] == ["dylan"]
     assert client.post("/api/admin/users/dylan/decision", headers=admin_headers, json={"action": "approve"}).status_code == 200
-    assert client.get("/api/requests", headers=pending_headers).status_code == 401
-    claim = client.post("/api/register/status", json={"username": "dylan", "receipt": receipt}).json()
-    assert claim["status"] == "ACTIVE"
-    login_headers = {"Authorization": "Bearer " + claim["token"]}
-    assert client.get("/api/requests", headers=login_headers).status_code == 200
-    assert client.get("/api/me", headers=login_headers).json()["is_admin"] is False
-    assert client.post("/api/register/status", json={"username": "dylan", "receipt": receipt}).status_code == 401
+    login = client.post("/api/login", json=credentials)
+    assert login.status_code == 200
+    assert "token" not in login.json()
+    assert login.cookies.get("peerlink_session")
+    assert client.get("/api/me").json()["is_admin"] is False
+    assert client.post("/api/logout").status_code == 200
+    assert client.get("/api/me").status_code == 401
 
 
 def test_rejected_registration_is_removed(tmp_path):
@@ -64,18 +63,19 @@ def test_rejected_registration_is_removed(tmp_path):
 def test_registration_accepts_unique_username_only(tmp_path):
     app = create_app(tmp_path / "hub.db")
     client = TestClient(app)
-    assert client.post("/api/register", json={"username": "dylan"}).status_code == 200
-    assert client.post("/api/register", json={"username": "dylan"}).status_code == 409
-    assert client.post("/api/register", json={"username": "bad name"}).status_code == 422
+    body = {"username": "dylan", "password": "a-secure-password"}
+    assert client.post("/api/register", json=body).status_code == 200
+    assert client.post("/api/register", json=body).status_code == 409
+    assert client.post("/api/register", json={**body, "username": "bad name"}).status_code == 422
 
 
 def test_registration_accepts_erp_with_dot(tmp_path):
     app = create_app(tmp_path / "hub.db")
     client = TestClient(app)
-    response = client.post("/api/register", json={"username": "yujunjie.50"})
+    response = client.post("/api/register", json={"username": "yujunjie.50", "password": "a-secure-password"})
     assert response.status_code == 200
     assert response.json()["username"] == "yujunjie.50"
-    assert client.post("/api/register", json={"username": "项目成员"}).status_code == 422
+    assert client.post("/api/register", json={"username": "项目成员", "password": "a-secure-password"}).status_code == 422
 
 
 def test_pending_user_is_not_discoverable(tmp_path):

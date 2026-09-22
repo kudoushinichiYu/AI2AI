@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import os
 import secrets
 import sqlite3
@@ -7,13 +8,28 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal, Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 
 def digest(token):
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def password_hash(password):
+    salt = secrets.token_bytes(16)
+    value = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 310000)
+    return f"pbkdf2_sha256$310000${salt.hex()}${value.hex()}"
+
+
+def password_matches(password, encoded):
+    try:
+        _, rounds, salt, expected = encoded.split("$", 3)
+        actual = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt), int(rounds))
+        return hmac.compare_digest(actual.hex(), expected)
+    except (AttributeError, ValueError):
+        return False
 
 
 class Store:
@@ -52,6 +68,10 @@ class Store:
                     id INTEGER PRIMARY KEY, request TEXT NOT NULL, actor TEXT NOT NULL,
                     event TEXT NOT NULL, created REAL NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS sessions (
+                    token TEXT PRIMARY KEY, owner TEXT NOT NULL,
+                    expires REAL NOT NULL, created REAL NOT NULL
+                );
             """)
         self.migrate()
 
@@ -66,6 +86,8 @@ class Store:
                 conn.execute("ALTER TABLE users ADD COLUMN created REAL NOT NULL DEFAULT 0")
             if "credential_kind" not in columns:
                 conn.execute("ALTER TABLE users ADD COLUMN credential_kind TEXT NOT NULL DEFAULT 'LOGIN'")
+            if "password_hash" not in columns:
+                conn.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
             conn.execute("UPDATE users SET status='ACTIVE' WHERE status=''")
             conn.execute("UPDATE users SET is_admin=1 "
                          "WHERE id=(SELECT id FROM users ORDER BY created,rowid LIMIT 1)")
@@ -90,32 +112,18 @@ class Store:
                          (name, digest(token), "PENDING", 0, time.time()))
         return token
 
-    def request_registration(self, name):
-        receipt = secrets.token_urlsafe(32)
+    def request_registration(self, name, password):
         with self.connect() as conn:
-            conn.execute("INSERT INTO users(id,token,status,is_admin,created,credential_kind) "
-                         "VALUES (?,?,?,?,?,?)",
-                         (name, digest(receipt), "PENDING", 0, time.time(), "REGISTRATION"))
-        return receipt
+            conn.execute("INSERT INTO users(id,token,status,is_admin,created,credential_kind,password_hash) "
+                         "VALUES (?,?,?,?,?,?,?)", (name, digest(secrets.token_urlsafe(32)),
+                         "PENDING", 0, time.time(), "PASSWORD", password_hash(password)))
 
-    def claim_registration(self, name, receipt):
+    def set_password(self, name, password):
         with self.connect() as conn:
-            row = conn.execute(
-                "SELECT status,credential_kind FROM users WHERE id=? AND token=?",
-                (name, digest(receipt)),
-            ).fetchone()
-            if not row or row["credential_kind"] != "REGISTRATION":
-                raise PermissionError("注册回执无效或已使用")
-            if row["status"] == "PENDING":
-                return {"username": name, "status": "PENDING"}
-            if row["status"] != "ACTIVE":
-                raise PermissionError("注册申请不可用")
-            login_token = secrets.token_urlsafe(32)
-            conn.execute(
-                "UPDATE users SET token=?,credential_kind='LOGIN' WHERE id=? AND token=?",
-                (digest(login_token), name, digest(receipt)),
-            )
-            return {"username": name, "status": "ACTIVE", "token": login_token}
+            if not conn.execute("SELECT 1 FROM users WHERE id=?", (name,)).fetchone():
+                raise KeyError(name)
+            conn.execute("UPDATE users SET password_hash=?,credential_kind='PASSWORD' WHERE id=?",
+                         (password_hash(password), name))
 
     def create_admin(self, name):
         token = secrets.token_urlsafe(32)
@@ -167,14 +175,13 @@ class DecisionInput(BaseModel):
 
 class RegistrationInput(BaseModel):
     username: str = Field(pattern=r"^[a-zA-Z0-9._-]{1,80}$")
+    password: str = Field(min_length=10, max_length=128)
+
+class LoginInput(RegistrationInput):
+    pass
 
 class UserDecisionInput(BaseModel):
     action: Literal["approve", "reject"]
-
-class RegistrationStatusInput(BaseModel):
-    username: str = Field(pattern=r"^[a-zA-Z0-9._-]{1,80}$")
-    receipt: str = Field(min_length=1, max_length=200)
-
 
 class LeaseInput(BaseModel):
     lease: str = Field(min_length=1, max_length=200)
@@ -190,18 +197,23 @@ def create_app(db_path=None):
     app = FastAPI(title="Peerlink Collaboration", version="0.1.0")
     app.state.store = store
 
-    def actor(authorization: str = Header(default="")):
-        if not authorization.startswith("Bearer "):
-            raise HTTPException(401, "需要 Bearer Token")
-        token = digest(authorization[7:])
+    def actor(authorization: str = Header(default=""), peerlink_session: str = Cookie(default="")):
         with store.connect() as conn:
-            row = conn.execute("SELECT id,is_admin FROM users "
-                               "WHERE token=? AND status='ACTIVE' AND credential_kind='LOGIN'", (token,)).fetchone()
-            if row:
-                return {"kind": "user", "owner": row["id"], "id": row["id"]}
-            row = conn.execute("SELECT id,owner FROM devices WHERE token=?", (token,)).fetchone()
-            if row:
-                return {"kind": "device", "owner": row["owner"], "id": row["id"]}
+            if peerlink_session:
+                row = conn.execute("SELECT u.id FROM sessions s JOIN users u ON u.id=s.owner "
+                                   "WHERE s.token=? AND s.expires>? AND u.status='ACTIVE'",
+                                   (digest(peerlink_session), time.time())).fetchone()
+                if row:
+                    return {"kind": "user", "owner": row["id"], "id": row["id"]}
+            if authorization.startswith("Bearer "):
+                token = digest(authorization[7:])
+                row = conn.execute("SELECT id FROM users WHERE token=? AND status='ACTIVE' "
+                                   "AND credential_kind='LOGIN'", (token,)).fetchone()
+                if row:
+                    return {"kind": "user", "owner": row["id"], "id": row["id"]}
+                row = conn.execute("SELECT id,owner FROM devices WHERE token=?", (token,)).fetchone()
+                if row:
+                    return {"kind": "device", "owner": row["owner"], "id": row["id"]}
         raise HTTPException(401, "凭证无效")
 
     def user(current=Depends(actor)):
@@ -266,17 +278,34 @@ def create_app(db_path=None):
     @app.post("/api/register")
     def register(body: RegistrationInput):
         try:
-            receipt = store.request_registration(body.username)
+            store.request_registration(body.username, body.password)
         except sqlite3.IntegrityError as error:
             raise HTTPException(409, "用户名已被占用") from error
-        return {"username": body.username, "receipt": receipt, "status": "PENDING"}
+        return {"username": body.username, "status": "PENDING"}
 
-    @app.post("/api/register/status")
-    def registration_status(body: RegistrationStatusInput):
-        try:
-            return store.claim_registration(body.username, body.receipt)
-        except PermissionError as error:
-            raise HTTPException(401, str(error)) from error
+    @app.post("/api/login")
+    def login(body: LoginInput, response: Response):
+        with store.connect() as conn:
+            row = conn.execute("SELECT status,password_hash FROM users WHERE id=?", (body.username,)).fetchone()
+            if not row or not password_matches(body.password, row["password_hash"]):
+                raise HTTPException(401, "用户名或密码错误")
+            if row["status"] != "ACTIVE":
+                raise HTTPException(403, "账户正在等待管理员审批")
+            session = secrets.token_urlsafe(32)
+            conn.execute("DELETE FROM sessions WHERE expires<=?", (time.time(),))
+            conn.execute("INSERT INTO sessions(token,owner,expires,created) VALUES (?,?,?,?)",
+                         (digest(session), body.username, time.time() + 604800, time.time()))
+        response.set_cookie("peerlink_session", session, max_age=604800, httponly=True,
+                            secure=True, samesite="lax", path="/")
+        return {"username": body.username, "ok": True}
+
+    @app.post("/api/logout")
+    def logout(response: Response, peerlink_session: str = Cookie(default="")):
+        if peerlink_session:
+            with store.connect() as conn:
+                conn.execute("DELETE FROM sessions WHERE token=?", (digest(peerlink_session),))
+        response.delete_cookie("peerlink_session", path="/")
+        return {"ok": True}
 
     @app.get("/api/admin/users")
     def users(current=Depends(admin)):
