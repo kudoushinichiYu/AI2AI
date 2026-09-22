@@ -1,0 +1,68 @@
+docs/guide.md
+  s_2f75bfd3e049f0::t_6ce65ebe453ab5 57,71
+  s_2f75bfd3e049f0::t_42573e70000aef 46,49-50,53,56,60,73,83
+  s_2f75bfd3e049f0::t_fd4e87330d6cd5 119,122,125
+tests/test_connector.py
+  s_2f75bfd3e049f0::t_4fc24e5183d28e 75-77
+  s_2f75bfd3e049f0::t_aa3a44d0105686 40-45
+  s_2f75bfd3e049f0::t_96681c378bca01 97-98
+README.zh-CN.md
+  s_2f75bfd3e049f0::t_7391d344e9721a 50,54,57-58
+  s_2f75bfd3e049f0::t_6ce65ebe453ab5 59,64
+peerlink/static/index.html
+  s_2f75bfd3e049f0::t_37e7f0f8ab1057 3-15,17-21
+  s_2f75bfd3e049f0::t_8df61fb9367b5e 16,22
+skills/peerlink/agents/openai.yaml
+  s_2f75bfd3e049f0::t_a3d0f672d5089b 1-4
+peerlink/bundled_skill/SKILL.md
+  s_2f75bfd3e049f0::t_543f95c3264c44 12-13,16
+  s_2f75bfd3e049f0::t_a3d0f672d5089b 1-11,14-15,17-18
+peerlink/hub.py
+  s_2f75bfd3e049f0::t_629506810216e9 79-82,179-182,256-258,374,387-409,499,508,523,532,543,554-555
+  s_2f75bfd3e049f0::t_34cb20bd1fc848 148-155,301-308
+  s_2f75bfd3e049f0::t_e4c0a7cc940901 61-64,102-104,190-198,428-469,474-476
+tests/test_hub.py
+  s_2f75bfd3e049f0::t_96681c378bca01 101-113,144-145,229-243
+  s_2f75bfd3e049f0::t_4fc24e5183d28e 27-30,114-143
+  s_2f75bfd3e049f0::t_aa3a44d0105686 65-72
+pyproject.toml
+  s_2f75bfd3e049f0::t_e622d2c68edde4 19
+docs/guide.zh-CN.md
+  s_2f75bfd3e049f0::t_fd4e87330d6cd5 141,144,147
+  s_2f75bfd3e049f0::t_4e3f68736e91c4 44,51,73,76-77,80,83,100,110
+  s_2f75bfd3e049f0::t_6ce65ebe453ab5 84,98
+peerlink/static/app.js
+  s_2f75bfd3e049f0::t_bd0c019a8e2fad 6
+  s_2f75bfd3e049f0::t_8df61fb9367b5e 7,9,12
+peerlink/cli.py
+  s_2f75bfd3e049f0::t_629506810216e9 26-27,116-122
+  s_2f75bfd3e049f0::t_e622d2c68edde4 6,56-59,71-81,123-126
+  s_2f75bfd3e049f0::t_34cb20bd1fc848 2,84-90
+  s_2f75bfd3e049f0::t_e4c0a7cc940901 35-38,127-133
+skills/peerlink/SKILL.md
+  s_2f75bfd3e049f0::t_a3d0f672d5089b 3,6,8,10,14-15,17-18
+  s_2f75bfd3e049f0::t_543f95c3264c44 12,16
+peerlink/client.py
+  s_2f75bfd3e049f0::t_629506810216e9 7,15-16
+README.md
+  s_2f75bfd3e049f0::t_7391d344e9721a 50,54,57-58
+  s_2f75bfd3e049f0::t_6ce65ebe453ab5 59,64
+peerlink/bundled_skill/agents/openai.yaml
+  s_2f75bfd3e049f0::t_a3d0f672d5089b 1-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "c2450321a74f672eff47a0bb9468f0179cc9d530",
+  "prompts": {},
+  "sessions": {
+    "s_2f75bfd3e049f0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c2ff-22f2-7123-a418-c80eee7dba32",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "kudoushinichiYu <2449315540@qq.com>"
+    }
+  }
+}
