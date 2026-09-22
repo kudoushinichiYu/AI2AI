@@ -1,0 +1,80 @@
+docs/guide.md
+  s_2f75bfd3e049f0::t_cce6f088101958 68,75
+  s_2f75bfd3e049f0::t_a0a85c21c6f537 49
+  s_2f75bfd3e049f0::t_07192552732801 3
+plugins/peerlink/skills/peerlink/SKILL.md
+  s_2f75bfd3e049f0::t_7d81aaca5727d5 1-18
+peerlink/cli.py
+  s_2f75bfd3e049f0::t_7d81aaca5727d5 11,43-46,100-109
+docs/admin-guide.md
+  s_2f75bfd3e049f0::t_0ac7253b9f8f54 1-34
+plugins/peerlink/.codex-plugin/plugin.json
+  s_2f75bfd3e049f0::t_78dd5ae5599e20 1-2,5,7-10,14,21-22
+  s_2f75bfd3e049f0::t_7d81aaca5727d5 3-4,6,11-13,15-20
+peerlink/connector.py
+  s_2f75bfd3e049f0::t_7d81aaca5727d5 13,186,189
+  s_2f75bfd3e049f0::t_95719b23f728f4 116-143,170
+pyproject.toml
+  s_2f75bfd3e049f0::t_7d81aaca5727d5 7
+README.md
+  s_2f75bfd3e049f0::t_07192552732801 6,106-108
+  s_2f75bfd3e049f0::t_a0a85c21c6f537 14
+  s_2f75bfd3e049f0::t_df24701777fce2 61,116
+docs/admin-guide.zh-CN.md
+  s_2f75bfd3e049f0::t_0ac7253b9f8f54 1-69
+docs/member-guide.md
+  s_2f75bfd3e049f0::t_0ac7253b9f8f54 1-4,6-9,11-12,16-17,19-46,58-59,61-74
+  s_2f75bfd3e049f0::t_92e2468a5d74ff 5,10,14-15,18
+  s_2f75bfd3e049f0::t_2198c80ab54bf3 47-57,60
+  s_2f75bfd3e049f0::t_a0a85c21c6f537 13
+plugins/peerlink/scripts/install-background-connector.sh
+  s_2f75bfd3e049f0::t_7d81aaca5727d5 1-9
+tests/test_connector.py
+  s_2f75bfd3e049f0::t_ba5e2ac628ec6d 12,68-86
+skills/peerlink/SKILL.md
+  s_2f75bfd3e049f0::t_8ed0e972996dcf 19-20
+peerlink/bundled_skill/SKILL.md
+  s_2f75bfd3e049f0::t_8ed0e972996dcf 19-20
+peerlink/hub.py
+  s_2f75bfd3e049f0::t_a0a85c21c6f537 229,301,303,308
+.gitignore
+  s_2f75bfd3e049f0::t_e7ec7efc6082cc 9
+docs/member-guide.zh-CN.md
+  s_2f75bfd3e049f0::t_a0a85c21c6f537 21
+  s_2f75bfd3e049f0::t_92e2468a5d74ff 5,16,22-23,26,31
+  s_2f75bfd3e049f0::t_0ac7253b9f8f54 1-4,6-15,17-20,24-25,27-30,32-96,98,112,114-133,135-142
+  s_2f75bfd3e049f0::t_2198c80ab54bf3 97,99-111,113,134
+peerlink/service.py
+  s_2f75bfd3e049f0::t_8ed0e972996dcf 71-72
+  s_2f75bfd3e049f0::t_7d81aaca5727d5 1-70,73-127
+tests/test_service.py
+  s_2f75bfd3e049f0::t_7d81aaca5727d5 1-38
+README.zh-CN.md
+  s_2f75bfd3e049f0::t_a0a85c21c6f537 14
+  s_2f75bfd3e049f0::t_df24701777fce2 61,116
+  s_2f75bfd3e049f0::t_07192552732801 6,106-108
+.agents/plugins/marketplace.json
+  s_2f75bfd3e049f0::t_3b520df985579a 1-20
+docs/guide.zh-CN.md
+  s_2f75bfd3e049f0::t_cce6f088101958 76,87,95,102
+  s_2f75bfd3e049f0::t_07192552732801 3
+  s_2f75bfd3e049f0::t_a0a85c21c6f537 27
+plugins/peerlink/README.md
+  s_2f75bfd3e049f0::t_d5e1a54b3cc44b 1-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "de2a739140c13ff8686f917db6c50cb8a01cd958",
+  "prompts": {},
+  "sessions": {
+    "s_2f75bfd3e049f0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c2ff-22f2-7123-a418-c80eee7dba32",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "kudoushinichiYu <2449315540@qq.com>"
+    }
+  }
+}
