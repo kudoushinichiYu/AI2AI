@@ -1,0 +1,58 @@
+peerlink/cli.py
+  s_2f75bfd3e049f0::t_e14c93a0b1e439 156-159
+  s_2f75bfd3e049f0::t_d6f98cd480965d 9-10,13,65,153-155,160-166
+tests/test_hub.py
+  s_2f75bfd3e049f0::t_775b4becc0b3d9 5,14,37-38,43-55
+plugins/peerlink/.codex-plugin/plugin.json
+  s_2f75bfd3e049f0::t_c8d7ac3d3d46b1 3
+tests/test_connector.py
+  s_2f75bfd3e049f0::t_775b4becc0b3d9 12,90-113,146-147,179-180,183
+  s_2f75bfd3e049f0::t_45a63aeff35716 14,114-145
+  s_2f75bfd3e049f0::t_e14c93a0b1e439 181-182
+peerlink/releases.py
+  s_2f75bfd3e049f0::t_5df1f6e9f76427 1-3,5-55,58-71
+  s_2f75bfd3e049f0::t_03b93a90839029 4,56-57
+peerlink/bundled_skill/SKILL.md
+  s_2f75bfd3e049f0::t_d5fe40c12915e8 8
+  s_2f75bfd3e049f0::t_e14c93a0b1e439 10
+peerlink/__init__.py
+  s_2f75bfd3e049f0::t_3121deccd384f6 3
+docs/member-guide.md
+  s_2f75bfd3e049f0::t_51afd58ed2ff61 22
+  s_2f75bfd3e049f0::t_d5fe40c12915e8 21
+peerlink/hub.py
+  s_2f75bfd3e049f0::t_37d9ddda4ea607 16,376-378
+docs/member-guide.zh-CN.md
+  s_2f75bfd3e049f0::t_c8d7ac3d3d46b1 31
+  s_2f75bfd3e049f0::t_d5fe40c12915e8 37
+peerlink/static/index.html
+  s_2f75bfd3e049f0::t_3cfb53a7e2c2b7 95
+  s_2f75bfd3e049f0::t_33615e0fa6596d 16,21,94,96-97,157
+peerlink/static/app.js
+  s_2f75bfd3e049f0::t_7cba42db500ddb 388-390,392-407,421
+  s_2f75bfd3e049f0::t_03b93a90839029 391
+plugins/peerlink/README.md
+  s_2f75bfd3e049f0::t_c8d7ac3d3d46b1 14-15
+peerlink/connector.py
+  s_2f75bfd3e049f0::t_7835fab92d54a1 146-151,153,156-176,181-182,206,210-213
+  s_2f75bfd3e049f0::t_58405a117efe09 177-180
+  s_2f75bfd3e049f0::t_aa81861e2fa4e7 12,14,152,154-155
+plugins/peerlink/skills/peerlink/SKILL.md
+  s_2f75bfd3e049f0::t_d5fe40c12915e8 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "acf14eb6bd675d6f28ec5008d2580ccc90a18937",
+  "prompts": {},
+  "sessions": {
+    "s_2f75bfd3e049f0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c2ff-22f2-7123-a418-c80eee7dba32",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "kudoushinichiYu <2449315540@qq.com>"
+    }
+  }
+}
