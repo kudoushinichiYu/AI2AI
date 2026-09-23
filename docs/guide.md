@@ -2,7 +2,9 @@
 
 **English** | [简体中文](guide.zh-CN.md) | [Administrator handbook](admin-guide.md) | [Member handbook](member-guide.md) | [Project home](../README.md)
 
-This guide covers shared-server deployment, member setup, collaboration, the Codex Skill, experimental model execution, and operations. Run shell commands from the repository root. Replace values inside angle brackets with actual values before running commands.
+This guide covers shared-server deployment, member setup, collaboration, the Codex Desktop Skill, optional experimental Docker execution, and operations. Run shell commands from the repository root. Replace values inside angle brackets with actual values before running commands.
+
+> This guide retains legacy Connector/Mock/Docker details. New members should start with the [updated member handbook](member-guide.md). Bridge 0.5.0 is deployed online; see the [migration status](peerlink-bridge-migration.zh-CN.md) for what the public-WSS Echo test did and did not verify.
 
 ## 1. Deploy a shared Hub
 
@@ -64,17 +66,17 @@ Use `http://127.0.0.1:8000` only when the Hub runs on the same machine. The pair
 **Sharing a project?** Register your device and an explicitly selected project:
 
 ```bash
-peerlink project-add <project-id> /absolute/path/to/project --runtime mock --description 'Project description'
+peerlink project-add <project-id> /absolute/path/to/project --runtime codex-desktop --description 'Project description'
 peerlink service-install
 ```
 
-Administrators seed the cloud catalog. Each member's Codex reads `catalog` and uploads only explicitly confirmed project-to-local-path bindings, not repository contents; missing projects may be skipped. Members use `peerlink project-propose <id> '<description>'` for new entries and cannot bind them before administrator approval. See [real Codex execution](#5-real-codex-execution-experimental) for the experimental adapter.
+Administrators seed the cloud catalog. Each member's Codex reads `catalog` and uploads only explicitly confirmed project-to-local-path bindings, not repository contents; missing projects may be skipped. Members use `peerlink project-propose <id> '<description>'` for new entries and cannot bind them before administrator approval. The recommended Desktop Skill workflow is described below; Docker remains an optional adapter.
 
 The proposal command also works with a paired device credential; it creates a `PENDING` catalog entry for administrator review. Administrators can retire an active entry and reactivate it later. Retiring hides its project bindings from discovery and cancels unfinished requests for that project.
 
 State defaults to `~/.peerlink`. Override it with `PEERLINK_STATE` or `peerlink --state /path/to/state ...`. Newly created state directories use mode 700 and configuration files use mode 600. The device credential can send questions and retrieve replies for its owner, but cannot approve incoming execution.
 
-`service-install` creates a per-user macOS launchd or Linux systemd service that starts at login and shows desktop notifications for approval requests, ready drafts, and completed answers. Check it with `peerlink service-status`. The Hub still cannot bypass owner approval or send an unreviewed draft. Approved requests wait while the assigned device is offline.
+`service-install` creates a per-user macOS launchd or Linux systemd service that starts at login and shows notifications for new requests, approvals, and completed answers. For `codex-desktop` projects it notifies but does not claim work or wake Codex Desktop; invoke the Skill in the app. Check it with `peerlink service-status`. The Hub still cannot bypass owner approval or send an unreviewed draft.
 
 Each user/project pair currently maps to one device. Before changing its directory, runtime, or device, run `peerlink project-remove <project-id>`. This cancels outstanding requests for that registration. Register again and request fresh approval. Owners can revoke a device through `DELETE /api/devices/{id}` using their user credentials.
 
@@ -95,7 +97,13 @@ Use `peerlink cancel <request-id>` to cancel an unfinished request you sent.
 
 ### Project owner
 
-Review the question in the web interface and approve or reject execution. Once approved, the Connector runs the selected runtime. When a draft is ready, open another terminal on the same machine and activate the same virtual environment:
+Review the question in the web interface and approve or reject execution. For a `codex-desktop` project, open its registered folder in Codex Desktop and invoke the Peerlink Skill. The Skill verifies approval and the locally bound path with:
+
+```bash
+peerlink desktop-context <request-id>
+```
+
+It then reads relevant project files in the active Codex Desktop session and prepares a draft. Once asked to save it, `peerlink desktop-submit <request-id>` claims that approved task and stores the answer locally; the answer text is not uploaded to the Hub. No Codex CLI or Docker image is required, but the Peerlink CLI and Skill are. The background Connector can notify about approval but cannot wake or control the app. Review and send only after explicit confirmation:
 
 ```bash
 peerlink review
@@ -126,7 +134,17 @@ peerlink skill-install
 
 Reload Codex, then ask it to use Peerlink to contact a member, check replies, or share an explicitly selected project. The Skill uses the paired device credential and never stores the account password. It cannot approve incoming execution or send a draft without the owner's explicit authorization. See the [Skill instructions](../skills/peerlink/SKILL.md).
 
-## 5. Real Codex execution (experimental)
+## 5. Codex Desktop Skill (lightweight)
+
+Register a project with `--runtime codex-desktop`, install the Peerlink Skill, and install the lightweight background Connector if notifications are wanted. No Codex CLI or Docker is required. The separate Peerlink CLI remains the local client for device credentials and Hub communication.
+
+The Desktop Skill works in the active Codex Desktop conversation. It checks that the request is `WAITING_DEVICE` (approved) and that the locally registered project path is accessible to that session. It reads relevant files, prepares a draft, and only claims the task when saving the user's chosen draft. The Connector heartbeat keeps the review window active when the background service is installed. The answer stays local until the owner explicitly sends it.
+
+The background Connector cannot programmatically wake an existing Codex Desktop conversation or inject a task into it. After approval, the owner invokes the Skill in Codex Desktop. Codex Desktop can open local folders and use them within the access the user grants; see [OpenAI's desktop guidance](https://help.openai.com/en/articles/20001275/).
+
+The Desktop Skill has a different security boundary from a container: Peerlink validates the registered path but cannot impose OS-level read isolation on the Codex Desktop session. Use trusted collaborators, open only the intended project folder, and do not bind sensitive project trees unless appropriate for that session.
+
+## 6. Optional Codex Docker runtime (experimental)
 
 `codex --sandbox read-only` alone does not confine reads to a project directory. The adapter runs Codex in a local Docker container with a read-only project mount, rather than directly on the host. It does not mount the entire home directory, SSH keys, Docker socket, or unrelated projects.
 
@@ -151,7 +169,7 @@ Cancellation and revocation propagate through lease checks, normally on a roughl
 
 Reference: [Codex non-interactive execution](https://developers.openai.com/codex/noninteractive). Real model calls and container behavior must be validated on target machines; passing Mock tests does not validate the Codex adapter.
 
-## 6. Operations, backups, and upgrades
+## 7. Operations, backups, and upgrades
 
 ### Storage and recovery
 
@@ -160,7 +178,7 @@ Reference: [Codex non-interactive execution](https://developers.openai.com/codex
 - To migrate, stop the service or take a consistent backup, restore it as `/data/hub.db` in the target volume, and ensure container UID 10001 can read and write it.
 - A Hub URL change also requires updating the `hub` value in each Connector's local configuration. Moving the Hub does not move project files or runtimes to the server.
 
-The implementation uses SQLite WAL, one Hub instance, and HTTP polling. Expired tasks are marked failed rather than automatically reassigned; a new request requires new approval. This avoids automatically running a second copy while a disconnected worker may still be executing.
+The implementation uses SQLite WAL and one Hub instance. The new Bridge uses outbound WebSocket, while legacy runtimes still poll over HTTP during migration. Expired tasks are marked failed rather than automatically reassigned; a new request requires new approval.
 
 ### Upgrading earlier development installations
 
@@ -174,7 +192,7 @@ The Compose project name is `peerlink`. To retain an existing deployment's volum
 
 All approved users currently belong to a single trusted trial group. They can discover project names and submit questions, but execution still needs the owner's approval. Administrator approval is a human trust decision, not identity verification. Public deployment needs further work on SSO or short-lived credentials, rotation, registration abuse controls, contact/access policies, rate limiting, retention, audit queries, monitoring, backup/restore drills, load testing, and browser validation.
 
-## 7. Development and verification
+## 8. Development and verification
 
 ```bash
 python -m pip install -e '.[test]'

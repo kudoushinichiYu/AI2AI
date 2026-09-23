@@ -7,18 +7,18 @@
 
 ---
 
-Peerlink lets teammates ask questions of each other's project agents without handing over unrestricted access to their computers. A shared **Hub** routes requests and manages approvals. A lightweight **Connector** runs the agent on the project owner's machine. The owner decides whether to run a request and what answer to share.
+Peerlink lets teammates ask questions of each other's project agents without handing over unrestricted access to their computers. A shared **Hub / Relay** manages identity, discovery, approval, and routing. A lightweight local **Bridge** connects outbound and runs the agent on the project owner's machine. The owner approves every request and reviews every draft before sending. See the [target design](docs/peerlink-local-agent-bridge-proposal.zh-CN.md) and [migration status](docs/peerlink-bridge-migration.zh-CN.md).
 
 Deploy one Hub on a lab server, an internal host, or a cloud VM. Members connect their own machines and explicitly register the projects they want to make available for collaboration.
 
-> **Developer preview.** Start with a small, trusted group. The Mock workflow has automated end-to-end coverage; real Codex execution and container deployment still require validation on the target machines. Peerlink is not yet production-hardened.
+> **Developer preview.** Version 0.5.0 is deployed at `peerlink.jd.com`. A real public-WSS Echo request passed the owner-approval and local-review flow. A real Codex model turn, two separate member computers, and Remote MCP/OAuth remain unverified or unimplemented.
 
 ## Why Peerlink?
 
 - **Project-aware collaboration.** Ask about experiment settings, repository structure, or design decisions in a specific teammate's project.
 - **Human approval at both ends of execution.** The owner approves the request, then reviews, edits, or rejects the generated answer before sending it.
 - **Local execution, shared coordination.** Register project locations without uploading a copy of the repository to the Hub.
-- **Offline request storage.** Approved requests wait for the assigned device to come online. Execution leases prevent concurrent claims of the same task.
+- **Online delivery.** The new Bridge uses an outbound WebSocket and reports offline devices explicitly. Legacy polling requests remain available during migration.
 - **CLI and Skill access.** Use the web interface or `peerlink` commands; a Codex Skill can guide an agent through the CLI workflow.
 
 ## How it works
@@ -27,11 +27,11 @@ Deploy one Hub on a lab server, an internal host, or a cloud VM. Members connect
 
 | Component | Runs on | Responsibility |
 | --- | --- | --- |
-| Hub | Shared server | Accounts, project mappings, request storage, approvals, routing, and status |
-| Connector | Member's machine | Device registration, local project checks, task execution, and draft review |
-| Agent runtime | Member's machine | Answering questions using the registered project; Mock or experimental Codex Docker adapter |
+| Hub / Relay | Shared server | Accounts, Agent metadata, temporary messages, approvals, and online routing; no local workspace paths |
+| Bridge | Member's machine | Outbound WebSocket, local workspace bindings, execution, and draft review |
+| Agent backend | Member's machine | Echo connectivity test and experimental Codex app-server; legacy Mock/Docker remain compatible |
 
-Members who only ask questions do not need a running Connector. Members who share projects do. The Hub knowing a project path does not give it direct access to that machine.
+Members who only ask questions do not need a running Bridge. Project owners keep the Bridge online. Their workspace paths remain on their own machines.
 
 ## Quick start
 
@@ -57,11 +57,11 @@ Sign in on the web page, generate a one-time code under **My devices**, then run
 peerlink connect --hub http://127.0.0.1:8000 --name my-laptop --code <pairing-code>
 peerlink skill-install
 peerlink catalog
-peerlink project-add my-project /absolute/path/to/project --runtime mock
+peerlink agent add my-project /absolute/path/to/project --backend echo --visibility team
 peerlink service-install
 ```
 
-Administrators seed the cloud project catalog in the web interface. After pairing, each member uses `catalog` and binds the corresponding local directories on their own computer. Members propose additional catalog entries with `peerlink project-propose <id> '<description>'`; binding is allowed only after administrator approval. **Mock only demonstrates the collaboration flow.**
+Administrators seed the cloud project catalog in the web interface. After pairing, members bind only the local directories they select. Additional catalog entries require administrator approval. **Echo tests routing only; it does not call a model.** For automatic local drafting, use `--backend codex-app-server` only when that executable is available. Codex Desktop alone supports the manual `project-add ... --runtime codex-desktop` Skill flow, not automatic control of an open desktop conversation.
 
 ### 3. Try the approval flow
 
@@ -84,17 +84,18 @@ Replace `REQUEST_ID` with the ID shown by `review`. Run `--send` only after revi
 | Request API, approval interface, local review, and CLI | Implemented; the web interface is currently in Chinese |
 | Separate user/device credentials and persistent requests | Implemented |
 | Web self-service registration and administrator approval | Implemented |
-| Mock runtime | Automated end-to-end test coverage |
-| Codex Docker adapter | Experimental; real runtime validation pending |
-| Docker deployment configuration and Codex Skill | Included; not a one-click installer |
-| Claude Code, MCP server, session recovery, and automatic replies in the original agent session | Not yet implemented |
+| Bridge WebSocket, discovery, Echo, per-request approval, and local review | Deployed as 0.5.0; one real public-WSS Echo round trip passed with owner approval and review |
+| Codex app-server backend | Protocol adapter and fake-process test; real model execution and access isolation unverified |
+| Codex Desktop manual Skill flow | Available; no separate Codex CLI needed and no automatic control of desktop sessions |
+| Legacy Mock/Docker runtime | Compatible; Docker remains experimental |
+| Remote MCP/OAuth, Claude Code, automatic receipt into original agent sessions | Not yet implemented |
 
-The current Hub uses **SQLite WAL, a single service instance, and HTTP polling**. Each request starts an independent temporary agent session. Expired executions fail rather than being automatically reassigned.
+The Hub uses **SQLite WAL and a single service instance**. The new Bridge uses WebSocket; legacy runtimes still poll over HTTP. Bridge messages have a 24-hour retention window. Expired executions fail rather than being automatically reassigned.
 
 ## Security and trust
 
 - Use Peerlink within a trusted group, preferably over a private network or VPN. Remote clients require HTTPS.
-- Project registration sends location metadata, not repository contents, to the Hub. Questions and approved answers are stored there; unapproved drafts stay on the owner's machine.
+- Bridge registration sends an Agent ID, description, device, and access scope, not a workspace path or repository. Questions and approved answers are stored temporarily; unapproved drafts stay on the owner's machine.
 - Local execution does **not** mean offline inference. Model services may receive project context, and the experimental runtime still needs model credentials and network access.
 - The system trusts the local user and Connector. Human review is not a data-loss-prevention system, and it cannot protect against a compromised device.
 - Public deployment needs further work on authentication, credential rotation, authorization policies, rate limiting, and operational security. See the [guide](docs/guide.md) before using sensitive projects.

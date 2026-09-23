@@ -92,8 +92,8 @@
       </header>
       <div id="workspace-message" class="message" role="alert" aria-live="polite"></div>
       <div id="release-notice" class="notice release-notice" role="status" aria-live="polite" hidden>
-        <div class="release-copy"><strong>Peerlink 版本与更新</strong><p>最新可用：CLI <b id="release-cli-version">—</b> · Codex 插件 <b id="release-plugin-version">—</b></p><p>网页不能读取本机版本。旧客户端首次需手动升级一次；之后 Skill 和后台 Connector 会检查提醒。安装更新前仍需你确认。</p></div>
-        <div class="release-actions"><button type="button" id="copy-cli-update" class="secondary">复制客户端更新命令</button><button type="button" id="copy-plugin-update" class="secondary">复制插件更新步骤</button></div>
+        <div class="release-copy"><strong>Peerlink 版本与更新</strong><p>最新可用：CLI <b id="release-cli-version">—</b> · Skill 包 <b id="release-plugin-version">—</b></p><p>网页不能读取本机版本。更新前请确认；Codex 桌面端使用 Skill 时不要求单独安装 Codex CLI。</p></div>
+        <div class="release-actions"><button type="button" id="copy-cli-update" class="secondary">复制客户端更新命令</button><button type="button" id="copy-plugin-update" class="secondary">复制 Skill 更新命令</button></div>
       </div>
 
       <section id="view-overview" class="view-panel" data-view-panel="overview">
@@ -120,17 +120,17 @@
           <section class="panel-card"><div class="panel-heading"><div><h2>1. 生成一次性配对码</h2><p>在 10 分钟内使用，且仅能绑定一次。</p></div><span class="step-number">01</span></div><div class="field"><label for="device-name">给这台电脑起个名字</label><input id="device-name" maxlength="100" value="我的电脑" placeholder="例如：MacBook Pro"></div><button type="button" id="pair-device" class="primary">生成配对码</button><div id="pairing-code" class="status-box" hidden></div><div id="connect-command-wrap" hidden><div class="code-label">复制到本机终端运行</div><pre id="connect-command" class="code-block"></pre><div class="code-actions"><button type="button" id="copy-connect" class="secondary">复制连接命令</button></div></div></section>
           <section class="panel-card"><h2>2. 查看已连接的电脑</h2><p>配对命令运行成功后，刷新本页即可看到设备。撤销设备会立即使该设备凭证失效。</p><div id="devices" class="item-list" style="margin-top:15px"></div></section>
         </div>
-        <div class="notice"><strong>多个账号分开：</strong>连接命令会使用 `~/.peerlink-用户名` 作为独立状态目录。后续 CLI 命令和 Codex Skill 也必须使用同一目录。若要让 Codex 插件自动继承此账号，请从运行过连接命令的同一终端启动 Codex；从 Dock 启动的应用不会自动继承终端环境变量。</div>
+        <div class="notice"><strong>多个账号分开：</strong>连接命令会使用 `~/.peerlink-用户名` 作为独立状态目录。后续 CLI 命令和 Codex Skill 也必须使用同一目录；从 Dock 打开的 Codex 不会自动继承终端中的 PEERLINK_STATE，使用 Skill 时请显式指定同一状态目录。</div>
       </section>
 
       <section id="view-projects" class="view-panel" data-view-panel="projects" hidden>
         <div class="section-heading"><h2>项目目录与本机路径</h2><p>云端项目目录是团队共享的项目名册；本机路径绑定是把你电脑上的指定文件夹映射给其中一个项目。两者不是同一步。</p></div>
         <section class="panel-card"><div class="panel-heading"><div><h2>第 1 步 · 选择一个云端项目</h2><p>只有“可用”项目可以绑定。待审批项目要等管理员批准。</p></div><span class="step-number">01</span></div><div id="catalog-projects" class="item-list"></div></section>
-        <section class="panel-card"><div class="panel-heading"><div><h2>第 2 步 · 生成本机绑定命令</h2><p>在电脑本机填写目录并复制命令；只有你在终端运行后，路径映射才会提交给 Hub。</p></div><span class="step-number">02</span></div>
-          <div class="form-grid"><div class="field"><label for="binding-project">云端项目</label><select id="binding-project"><option value="">先选择项目</option></select></div><div class="field"><label for="binding-runtime">运行方式</label><select id="binding-runtime"><option value="codex-docker">Codex 执行环境（需已配置）</option><option value="mock">仅验证流程（不会调用模型）</option></select></div></div>
+        <section class="panel-card"><div class="panel-heading"><div><h2>第 2 步 · 生成本机绑定命令</h2><p>本机目录只保存在你的电脑。云端只登记 Agent 标识、说明和访问范围，不接收路径。</p></div><span class="step-number">02</span></div>
+          <div class="form-grid"><div class="field"><label for="binding-project">云端项目</label><select id="binding-project"><option value="">先选择项目</option></select></div><div class="field"><label for="binding-runtime">运行方式</label><select id="binding-runtime"><option value="bridge-echo">Bridge 联通验证（不调用模型）</option><option value="bridge-codex-app-server">Bridge 自动起草（需要本机 Codex app-server）</option><option value="codex-desktop">Codex 桌面端 Skill 手动起草</option><option value="codex-docker">旧版 Docker 适配器（实验性）</option></select></div><div class="field"><label for="binding-visibility">哪些人可提问（Bridge）</label><select id="binding-visibility"><option value="private">仅本人</option><option value="team">团队成员</option></select></div><div class="field-hint" style="grid-column:1/-1">Bridge 只向云端发起连接，不开本机端口；每条问题仍需你在网页批准，草稿生成后仍需你审核发送。只有 Codex 桌面应用、没有 app-server 可执行程序时请选择手动 Skill 模式。</div></div>
           <div class="field"><label for="binding-path">这台电脑上的项目文件夹</label><input id="binding-path" type="text" autocomplete="off" spellcheck="false" placeholder="例如：/Users/你的用户名/Projects/my-project"><div class="field-hint">填写项目目录的绝对路径。不要选整个磁盘、根目录或整个个人目录。</div></div>
           <button type="button" id="generate-binding" class="primary">生成绑定命令</button>
-          <div id="binding-command-wrap" hidden><div class="notice" style="margin-top:16px"><strong>隐私说明：</strong>这个网页不会发送你刚填写的路径。命令执行时 Hub 会保存路径映射和运行方式，但不会因此收到项目文件。</div><div class="code-label">在本机终端运行</div><pre id="binding-command" class="code-block"></pre><div class="code-actions"><button type="button" id="copy-binding" class="secondary">复制命令</button></div></div>
+          <div id="binding-command-wrap" hidden><div class="notice" style="margin-top:16px"><strong>隐私说明：</strong>这个网页不会发送你刚填写的路径。命令运行后，路径也仅保存在本机配置里，不上传项目文件。</div><div class="code-label">在本机终端运行</div><pre id="binding-command" class="code-block"></pre><div class="code-actions"><button type="button" id="copy-binding" class="secondary">复制命令</button></div></div>
         </section>
         <section class="panel-card"><div class="panel-heading"><div><h2>云端还没有这个项目？</h2><p id="catalog-mode-note">成员提交后由管理员审批；管理员创建的项目会立即加入目录。</p></div></div><div class="form-grid"><div class="field"><label for="catalog-id">项目标识</label><input id="catalog-id" pattern="[a-zA-Z0-9_-]+" maxlength="80" placeholder="例如：research-tool"></div><div class="field"><label for="catalog-description">项目说明</label><input id="catalog-description" maxlength="1000" placeholder="项目用途或能回答的问题"></div></div><button type="button" id="catalog-submit" class="secondary">申请加入云端目录</button></section>
       </section>
@@ -154,6 +154,6 @@
     </main>
   </div>
   <style>.request-card pre{font-family:inherit;font-size:13px;line-height:1.55}</style>
-  <script src="/app.js?v=20260923-update-check" defer></script>
+  <script src="/app.js?v=20260923-local-agent-bridge" defer></script>
 </body>
 </html>

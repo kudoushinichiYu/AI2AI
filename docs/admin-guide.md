@@ -10,7 +10,7 @@ This handbook covers Hub initialization, account approval, the governed project 
 2. Seed known projects under **Cloud project catalog**. Use stable IDs containing letters, digits, underscores, or hyphens. Administrator-created entries become `ACTIVE` immediately.
 3. Review `PENDING` member registrations. Approval grants Hub membership; it does not grant access to another member's local files.
 4. Review member-proposed catalog entries. Check for duplicate IDs and clear descriptions. Members cannot bind a local path until the proposal is approved.
-5. Ask members to pair their own devices and explicitly map active catalog projects to local directories. Cloud metadata contains the mapping, not repository contents; other members do not receive the private path.
+5. Ask members to pair their own devices and explicitly bind active catalog projects to local directories. Cloud Agent metadata contains only IDs, descriptions, devices, and access scope, never an absolute local workspace path or repository contents.
 6. Revoke unused devices. Revocation removes that device's bindings and cancels its unfinished work.
 7. Disable a departing or compromised member from **User management**. This revokes their sessions, devices, and bindings and cancels unfinished requests; re-enabling the account requires the member to pair again. The last active administrator cannot be disabled.
 8. Retire a project that should no longer accept requests. Its unfinished requests are cancelled and audited; the project can be reactivated later.

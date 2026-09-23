@@ -7,18 +7,18 @@
 
 ---
 
-Peerlink 让团队成员可以向彼此的项目 Agent 提问，而不必开放对整台电脑的访问权限。共享的 **Hub** 负责转交请求和管理审批，轻量的 **Connector** 在项目提供方的电脑上执行 Agent。是否执行、最终分享什么答案，都由项目提供方本人决定。
+Peerlink 让团队成员可以向彼此的项目 Agent 提问，而不必开放对整台电脑的访问权限。共享的 **Hub / Relay** 负责登录、发现、审批和消息路由，轻量的本机 **Bridge** 主动连接 Relay 并在项目提供方电脑上执行 Agent。每条问题是否执行、最终分享什么答案，都由项目提供方本人决定。完整目标见[重构方案](docs/peerlink-local-agent-bridge-proposal.zh-CN.md)，当前实现与未完成项见[迁移说明](docs/peerlink-bridge-migration.zh-CN.md)。
 
 在实验室服务器、团队内网主机或云服务器上部署一套 Hub，成员连接自己的电脑，并显式注册愿意参与协作的项目即可。
 
-> **开发者预览版。** 建议先在小规模受信任团队中试用。Mock 流程已有自动化端到端测试；真实 Codex 执行和容器部署仍需在目标机器上验证。当前版本尚未完成生产级加固。
+> **开发者预览版。** 0.5.0 已部署到 `peerlink.jd.com`；一次公网 WSS Echo 请求通过了本人批准、本机起草与审核发送的完整闭环。真实 Codex 模型回合、两台不同成员电脑及远程 MCP/OAuth 仍未验收或实现，当前版本尚未完成生产级加固。
 
 ## 为什么使用 Peerlink？
 
 - **围绕具体项目协作。** 向成员的项目 Agent 询问实验设置、代码结构或历史设计决策。
 - **执行和发送分别确认。** 项目提供方先批准请求，再审核、修改或拒绝生成的答案。
 - **本地执行，集中协调。** 注册项目位置，无需因此将整个代码仓库上传到 Hub。
-- **离线请求留存。** 已批准请求等待指定设备上线；执行租约避免同一任务被并发领取。
+- **在线直达。** 新 Bridge 通过出站 WebSocket 在线路由；设备离线时明确返回错误。旧轮询请求在迁移期保留。
 - **CLI 与 Skill 入口。** 使用网页或 `peerlink` 命令；Codex Skill 可以引导 Agent 通过 CLI 完成协作。
 
 ## 工作方式
@@ -27,11 +27,11 @@ Peerlink 让团队成员可以向彼此的项目 Agent 提问，而不必开放�
 
 | 组件 | 运行位置 | 职责 |
 | --- | --- | --- |
-| Hub | 团队共享服务器 | 账户、项目映射、请求存储、审批、路由和状态管理 |
-| Connector | 成员电脑 | 设备注册、本地项目校验、任务执行和草稿审核 |
-| Agent Runtime | 成员电脑 | 基于注册项目回答问题；目前提供 Mock 和实验性 Codex Docker 适配器 |
+| Hub / Relay | 团队共享服务器 | 账号、Agent 元数据、短期请求、审批和在线路由；不保存本机项目路径 |
+| Bridge | 成员电脑 | 出站 WebSocket、本机项目路径、任务执行和草稿审核 |
+| Agent Backend | 成员电脑 | Echo 联通测试、实验性 Codex app-server；旧 Mock/Docker 兼容保留 |
 
-只提问的成员无需运行 Connector；开放项目的成员需要保持 Connector 运行。Hub 知道项目路径，不代表它可以直接访问成员的电脑。
+只提问的成员无需运行 Bridge；开放项目的成员需要保持 Bridge 在线。本机路径只留在 Bridge 配置中，不发送给 Hub。
 
 ## 快速开始
 
@@ -57,11 +57,11 @@ peerlink hub
 peerlink connect --hub http://127.0.0.1:8000 --name my-laptop --code <配对码>
 peerlink skill-install
 peerlink catalog
-peerlink project-add my-project /absolute/path/to/project --runtime mock
+peerlink agent add my-project /absolute/path/to/project --backend echo --visibility team
 peerlink service-install
 ```
 
-管理员先在网页的“云端项目目录”建立项目。每位成员配对后用 `catalog` 查看目录，再将自己电脑上的对应路径逐个绑定。成员可用 `peerlink project-propose <id> '<说明>'` 申请新项目，管理员批准后才能绑定。**Mock 仅演示协作流程。**
+管理员先在网页的“云端项目目录”建立项目。每位成员配对后用 `catalog` 查看目录，再将自己电脑上的对应路径逐个绑定。成员可用 `peerlink project-propose <id> '<说明>'` 申请新项目，管理员批准后才能绑定。**Echo 仅演示消息链路，不调用模型。**真实本机自动起草使用 `--backend codex-app-server`，要求本机有可用的 app-server 可执行程序；只有 Codex 桌面端时可改用 `project-add ... --runtime codex-desktop` 手动 Skill 模式。
 
 ### 3. 体验审批流程
 
@@ -84,17 +84,18 @@ peerlink review REQUEST_ID --send
 | 请求 API、审批页面、本地审核和 CLI | 已实现；网页界面目前为中文 |
 | 用户与设备凭证分离、请求持久化 | 已实现 |
 | 网页自助注册、管理员审批 | 已实现 |
-| Mock Runtime | 有自动化端到端测试覆盖 |
-| Codex Docker 适配器 | 实验性；真实 Runtime 验证待完成 |
-| Docker 部署配置与 Codex Skill | 已提供；不是一键安装器 |
-| Claude Code、MCP Server、会话恢复、原 Agent 会话自动接收回复 | 尚未实现 |
+| Bridge WebSocket、Agent 发现、Echo、逐条审批和本地审核 | 0.5.0 已上线；一次公网 WSS Echo 请求完成本人批准和审核发送 |
+| Codex app-server Backend | 协议适配和模拟进程测试已完成；真实模型回合及访问隔离待验证 |
+| Codex Desktop Skill 手动模式 | 已实现；不需要单独安装 Codex CLI，也不会自动操控桌面会话 |
+| 旧 Mock/Docker 适配器 | 兼容保留，Docker 仍属实验性 |
+| Remote MCP/OAuth、Claude Code、原 Agent 会话自动收信 | 尚未实现 |
 
-当前 Hub 使用 **SQLite WAL、单实例服务和 HTTP 轮询**。每个请求启动独立临时会话，执行超时后标记失败，不自动转交其他设备重跑。
+当前 Hub 使用 **SQLite WAL 和单实例服务**。新 Bridge 使用 WebSocket；旧 Runtime 仍使用 HTTP 轮询。Bridge 消息按 24 小时保留期清理，超时执行标记失败，不自动转交其他设备重跑。
 
 ## 安全与信任边界
 
 - 在受信任团队内使用，优先通过内网或 VPN 接入。远程客户端要求 HTTPS。
-- 注册项目时向 Hub 同步位置元数据，而不是仓库内容。问题与已批准的答案存储在 Hub，未确认的草稿留在项目提供方本机。
+- Bridge 注册只向 Hub 同步 Agent 名称、说明、设备和访问范围，不上传绝对路径或仓库内容。问题和已批准的答案在短期保留期内存储于 Hub，未确认草稿留在项目提供方本机。
 - 本地执行**不等于离线推理**。模型服务可能接收到项目上下文，实验性 Runtime 仍需要模型凭证和网络访问。
 - 系统信任本机用户与 Connector。人工审核不是数据防泄漏系统，也无法保护已被攻陷的设备。
 - 面向公网部署前，还需完善身份认证、凭证轮换、权限策略、限流及运维安全。使用敏感项目之前请阅读[完整指南](docs/guide.zh-CN.md)。

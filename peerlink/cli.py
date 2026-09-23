@@ -4,14 +4,27 @@ import json
 import os
 import re
 import shutil
+import secrets
+import sys
 from pathlib import Path
 
 import httpx
 
 from peerlink.client import Client
-from peerlink.connector import configured, review, save_json, work
+from peerlink.connector import (configured, desktop_context, desktop_submit, review,
+                                save_json, work)
 from peerlink.releases import PUBLIC_HUB, check_releases
 from peerlink.service import install_service, remove_service, service_status
+
+
+def discover_bridge_agents(client, owner):
+    """Keep the new CLI usable while a team's Hub is still on pre-Bridge 0.4.x."""
+    try:
+        return client.call("GET", "/api/bridge/agents", params={"owner": owner})
+    except httpx.HTTPStatusError as error:
+        if error.response.status_code == 404:
+            return []
+        raise
 
 
 def main():
@@ -33,9 +46,33 @@ def main():
     project.add_argument("id")
     project.add_argument("path")
     project.add_argument("--description", default="")
-    project.add_argument("--runtime", choices=["mock", "codex-docker"], default="mock")
+    project.add_argument("--runtime", choices=["mock", "codex-desktop", "codex-docker"], default="mock")
     remove = sub.add_parser("project-remove")
     remove.add_argument("id")
+    agent = sub.add_parser("agent")
+    agent_actions = agent.add_subparsers(dest="agent_command", required=True)
+    agent_add = agent_actions.add_parser("add")
+    agent_add.add_argument("id")
+    agent_add.add_argument("workspace")
+    agent_add.add_argument("--backend", choices=["echo", "codex-app-server"], default="echo")
+    agent_add.add_argument("--visibility", choices=["private", "team", "allowlist"], default="private")
+    agent_add.add_argument("--allow-user", action="append", default=[])
+    agent_add.add_argument("--description", default="")
+    agent_remove = agent_actions.add_parser("remove")
+    agent_remove.add_argument("id")
+    agent_actions.add_parser("list")
+    bridge = sub.add_parser("bridge")
+    bridge_actions = bridge.add_subparsers(dest="bridge_command", required=True)
+    bridge_start = bridge_actions.add_parser("start")
+    bridge_start.add_argument("--auth-dir")
+    listed_agents = sub.add_parser("agents")
+    listed_agents.add_argument("--owner")
+    send = sub.add_parser("send")
+    send.add_argument("receiver")
+    send.add_argument("agent")
+    send.add_argument("message")
+    send.add_argument("--thread")
+    send.add_argument("--message-id")
     sub.add_parser("catalog")
     propose = sub.add_parser("project-propose")
     propose.add_argument("id")
@@ -43,6 +80,10 @@ def main():
     worker = sub.add_parser("work")
     worker.add_argument("--once", action="store_true")
     worker.add_argument("--auth-dir")
+    desktop_context_parser = sub.add_parser("desktop-context")
+    desktop_context_parser.add_argument("id")
+    desktop_submit = sub.add_parser("desktop-submit")
+    desktop_submit.add_argument("id")
     service_install = sub.add_parser("service-install")
     service_install.add_argument("--auth-dir")
     sub.add_parser("service-status")
@@ -101,15 +142,51 @@ def main():
     if args.command == "work":
         work(state, args.once, args.auth_dir)
         return
+    if args.command == "bridge":
+        from peerlink.bridge.client import run_bridge
+        run_bridge(state, args.auth_dir)
+        return
+    if args.command == "agent":
+        from peerlink.bridge.registry import (add_agent, load_agents, registry_path,
+                                              validate_workspace)
+        if args.agent_command == "list":
+            print(json.dumps(load_agents(state), ensure_ascii=False, indent=2))
+            return
+        config, client = configured(state)
+        if args.agent_command == "remove":
+            client.call("DELETE", "/api/bridge/agents/" + args.id)
+            agents = load_agents(state)
+            agents.pop(args.id, None)
+            save_json(registry_path(state), agents)
+            print("Agent 已从本机和云端移除")
+            return
+        workspace = validate_workspace(args.workspace)
+        existing = load_agents(state).get(args.id)
+        if existing and existing["workspace"] != workspace:
+            parser.error("本机已注册同名 Agent；先运行 agent remove 再重新绑定")
+        client.call("PUT", "/api/bridge/agents", json={
+            "id": args.id, "description": args.description,
+            "visibility": args.visibility, "allowlist": args.allow_user,
+        })
+        add_agent(state, args.id, workspace, args.backend, args.description,
+                  args.visibility, args.allow_user)
+        print("Agent 已注册；本机路径仅保存在 agents.json")
+        return
+    if args.command == "desktop-context":
+        desktop_context(state, args.id)
+        return
+    if args.command == "desktop-submit":
+        desktop_submit(state, args.id, sys.stdin.read(100001))
+        return
     if args.command == "service-install":
         target = install_service(state, args.auth_dir)
         print(f"Peerlink 后台 Connector 已安装并启动：{target}")
         return
     if args.command == "service-status":
-        print(json.dumps(service_status(), ensure_ascii=False, indent=2))
+        print(json.dumps(service_status(state), ensure_ascii=False, indent=2))
         return
     if args.command == "service-remove":
-        target = remove_service()
+        target = remove_service(state)
         print(f"Peerlink 后台 Connector 已停止并移除：{target}")
         return
     if args.command == "review":
@@ -122,7 +199,10 @@ def main():
             if not path.is_dir() or path == Path.home() or path == Path("/"):
                 parser.error("请选择具体项目目录，不允许注册整个 Home 或根目录")
             project = {"id": args.id, "path": str(path), "description": args.description, "runtime": args.runtime}
-            client.call("PUT", "/api/projects", json=project)
+            previous = config.get("projects", {}).get(args.id)
+            if previous and (previous["path"] != project["path"] or previous["runtime"] != project["runtime"]):
+                parser.error("本机路径或 Runtime 变更需要先运行 project-remove")
+            client.call("PUT", "/api/projects", json={key: project[key] for key in ("id", "description", "runtime")})
             config["projects"][args.id] = project
         else:
             client.call("DELETE", "/api/projects/" + args.id)
@@ -140,14 +220,16 @@ def main():
         client.http.close()
         return
     if args.command == "status":
+        from peerlink.bridge.registry import load_agents
         config_path = state / "connector.json"
         if not config_path.is_file():
             print(json.dumps({"paired": False, "owner": None, "device": None,
-                              "hub": None, "projects": []}, ensure_ascii=False, indent=2))
+                              "hub": None, "projects": [], "agents": []}, ensure_ascii=False, indent=2))
             return
         config = json.loads(config_path.read_text())
         print(json.dumps({"paired": True, "owner": config["owner"], "device": config["id"],
-                          "hub": config["hub"], "projects": list(config.get("projects", {}))},
+                          "hub": config["hub"], "projects": list(config.get("projects", {})),
+                          "agents": list(load_agents(state))},
                          ensure_ascii=False, indent=2))
         return
     if args.command == "update-check":
@@ -175,10 +257,29 @@ def main():
         return
     if args.command == "peers":
         result = client.call("GET", "/api/peers")
+    elif args.command == "agents":
+        result = client.call("GET", "/api/bridge/agents", params={"owner": args.owner} if args.owner else {})
+    elif args.command == "send":
+        result = client.call("POST", "/api/bridge/messages", json={
+            "receiver": args.receiver, "agent_id": args.agent,
+            "content": args.message, "thread_id": args.thread,
+            "message_id": args.message_id or secrets.token_hex(12),
+        })
     elif args.command == "projects":
-        result = client.call("GET", "/api/projects", params={"owner": args.owner})
+        legacy = client.call("GET", "/api/projects", params={"owner": args.owner})
+        agents = discover_bridge_agents(client, args.owner)
+        result = [*legacy, *({**agent, "runtime": "bridge"} for agent in agents)]
     elif args.command == "ask":
-        result = client.call("POST", "/api/requests", json={"receiver": args.receiver, "project": args.project, "question": args.question})
+        agents = discover_bridge_agents(client, args.receiver)
+        if any(agent["id"] == args.project for agent in agents):
+            result = client.call("POST", "/api/bridge/messages", json={
+                "receiver": args.receiver, "agent_id": args.project,
+                "content": args.question, "message_id": secrets.token_hex(12),
+            })
+        else:
+            result = client.call("POST", "/api/requests", json={
+                "receiver": args.receiver, "project": args.project, "question": args.question,
+            })
     elif args.command == "requests":
         result = client.call("GET", "/api/requests")
     elif args.command == "get":

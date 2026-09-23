@@ -1,4 +1,5 @@
 import os
+import hashlib
 import plistlib
 import shutil
 import subprocess
@@ -9,8 +10,16 @@ from pathlib import Path
 SERVICE_NAME = "com.peerlink.connector"
 
 
+def service_name(state=None):
+    if state is None or Path(state).expanduser().resolve() == (Path.home() / ".peerlink").resolve():
+        return SERVICE_NAME
+    suffix = hashlib.sha256(str(Path(state).expanduser().resolve()).encode()).hexdigest()[:10]
+    return f"{SERVICE_NAME}.{suffix}"
+
+
 def worker_command(state, auth_dir=None):
-    command = [sys.executable, "-m", "peerlink.cli", "--state", str(Path(state).resolve()), "work"]
+    command = [sys.executable, "-m", "peerlink.cli", "--state", str(Path(state).resolve()),
+               "bridge", "start"]
     if auth_dir:
         command.extend(["--auth-dir", str(Path(auth_dir).expanduser().resolve())])
     return command
@@ -20,7 +29,7 @@ def launchd_definition(state, auth_dir=None, log_dir=None):
     log_dir = Path(log_dir or Path(state) / "logs").expanduser().resolve()
     command = worker_command(state, auth_dir)
     return {
-        "Label": SERVICE_NAME,
+        "Label": service_name(state),
         "ProgramArguments": command,
         "RunAtLoad": True,
         "KeepAlive": {"SuccessfulExit": False},
@@ -58,12 +67,13 @@ def _systemd_quote(value):
     return '"' + str(value).replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def service_path(platform=None):
+def service_path(platform=None, state=None):
     platform = platform or sys.platform
     if platform == "darwin":
-        return Path.home() / "Library" / "LaunchAgents" / f"{SERVICE_NAME}.plist"
+        return Path.home() / "Library" / "LaunchAgents" / f"{service_name(state)}.plist"
     if platform.startswith("linux"):
-        return Path.home() / ".config" / "systemd" / "user" / "peerlink-connector.service"
+        suffix = "" if service_name(state) == SERVICE_NAME else "-" + service_name(state).split(".")[-1]
+        return Path.home() / ".config" / "systemd" / "user" / f"peerlink-connector{suffix}.service"
     raise ValueError("后台服务目前只支持 macOS 和 Linux")
 
 
@@ -73,7 +83,7 @@ def install_service(state, auth_dir=None):
         raise ValueError("设备尚未绑定，请先运行 peerlink connect")
     if auth_dir and not (Path(auth_dir).expanduser().resolve() / "auth.json").is_file():
         raise ValueError("--auth-dir 中未找到 auth.json")
-    target = service_path()
+    target = service_path(state=state)
     target.parent.mkdir(parents=True, exist_ok=True)
     (state / "logs").mkdir(parents=True, exist_ok=True, mode=0o700)
     if sys.platform == "darwin":
@@ -82,7 +92,7 @@ def install_service(state, auth_dir=None):
         domain = f"gui/{os.getuid()}"
         subprocess.run(["launchctl", "bootout", domain, str(target)], capture_output=True)
         subprocess.run(["launchctl", "bootstrap", domain, str(target)], check=True)
-        subprocess.run(["launchctl", "kickstart", "-k", f"{domain}/{SERVICE_NAME}"], check=True)
+        subprocess.run(["launchctl", "kickstart", "-k", f"{domain}/{service_name(state)}"], check=True)
     else:
         target.write_text(systemd_definition(state, auth_dir))
         os.chmod(target, 0o600)
@@ -91,8 +101,8 @@ def install_service(state, auth_dir=None):
     return target
 
 
-def remove_service():
-    target = service_path()
+def remove_service(state=None):
+    target = service_path(state=state)
     if sys.platform == "darwin":
         subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}", str(target)], capture_output=True)
     else:
@@ -103,13 +113,13 @@ def remove_service():
     return target
 
 
-def service_status():
-    target = service_path()
+def service_status(state=None):
+    target = service_path(state=state)
     if not target.exists():
         return {"installed": False, "path": str(target), "running": False}
     if sys.platform == "darwin":
         result = subprocess.run(
-            ["launchctl", "print", f"gui/{os.getuid()}/{SERVICE_NAME}"], capture_output=True
+            ["launchctl", "print", f"gui/{os.getuid()}/{service_name(state)}"], capture_output=True
         )
     else:
         result = subprocess.run(

@@ -101,6 +101,69 @@ def run_runtime(project, question, pending_path, auth_dir=None):
             subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=20)
 
 
+def _valid_request_id(request_id):
+    return (len(request_id) == 24
+            and all(char in "0123456789abcdef" for char in request_id))
+
+
+def desktop_context(state, request_id):
+    """Return a locally registered project path for an approved desktop task."""
+    if not _valid_request_id(request_id):
+        raise ValueError("请求 ID 格式错误")
+    config, client = configured(state)
+    request = client.call("GET", f"/api/requests/{request_id}")
+    if request.get("receiver") != config["owner"]:
+        raise ValueError("该请求不是发给当前账号的")
+    if request.get("status") != "WAITING_DEVICE":
+        raise ValueError("项目负责人尚未批准，或该请求已不再等待执行")
+    project = config.get("projects", {}).get(request.get("project"))
+    if not project or project.get("runtime") != "codex-desktop":
+        raise ValueError("该项目未配置为 Codex Desktop Skill 执行模式")
+    path = Path(project["path"])
+    if not path.is_dir() or str(path.resolve()) != project["path"]:
+        raise ValueError("项目目录已移动、删除或变成符号链接")
+    print(json.dumps({
+        "id": request_id,
+        "sender": request["sender"],
+        "project": request["project"],
+        "project_path": project["path"],
+        "question": request["question"],
+        "status": request["status"],
+    }, ensure_ascii=False, indent=2))
+
+
+def desktop_submit(state, request_id, answer):
+    """Claim one approved desktop task, save its answer locally, and mark it draft-ready."""
+    if not _valid_request_id(request_id):
+        raise ValueError("请求 ID 格式错误")
+    answer = answer.strip()
+    if not answer or len(answer) > 100000:
+        raise ValueError("答案不能为空或超过 100000 个字符")
+    state = Path(state)
+    config, client = configured(state)
+    task = client.call("POST", "/api/connector/claim", json={"request_id": request_id})
+    if not task:
+        raise ValueError("请求尚未获批、已被其他执行器领取，或已结束")
+    if task.get("id") != request_id:
+        raise RuntimeError("Hub 返回了不同的请求；未保存答案")
+    project = config.get("projects", {}).get(task.get("project"), {})
+    if project.get("runtime") != "codex-desktop":
+        try:
+            client.call("POST", f"/api/connector/{request_id}/result",
+                        json={"lease": task["lease"], "action": "fail"})
+        except httpx.HTTPError:
+            pass
+        raise ValueError("该项目未配置为 Codex Desktop Skill 执行模式")
+    validate_project(config, task)
+    path = state / "drafts" / (request_id + ".pending.json")
+    task["runtime"] = "codex-desktop"
+    task["answer"] = answer
+    result = client.call("POST", f"/api/connector/{request_id}/result",
+                         json={"lease": task["lease"], "action": "draft_ready"})
+    save_json(path, task)
+    print(json.dumps({"status": result.get("status"), "id": request_id}, ensure_ascii=False))
+
+
 def keep_leases(state, client, stopped):
     while not stopped.is_set():
         for path in (Path(state) / "drafts").glob("*.pending.json"):
@@ -125,11 +188,17 @@ def notify_request_changes(state, config, client):
     changed = False
     requests = client.call("GET", "/api/requests")
     for item in requests:
+        if item.get("transport") == "bridge":
+            continue
         event = None
         if item["receiver"] == config["owner"] and item["status"] == "WAITING_APPROVAL":
             event = "waiting_approval"
             title = "Peerlink 收到新问题"
             message = f"{item['sender']} 想询问 {item['project']}，请在 Peerlink 页面审批"
+        elif item["receiver"] == config["owner"] and item["status"] == "WAITING_DEVICE":
+            event = "approved"
+            title = "Peerlink 请求已批准"
+            message = f"{item['project']} 有已批准问题；在 Codex 桌面端调用 Peerlink Skill 处理"
         elif item["sender"] == config["owner"] and item["status"] == "COMPLETED":
             event = "completed"
             title = "Peerlink 已收到回复"
@@ -193,7 +262,7 @@ def work(state, once=False, auth_dir=None):
         raise ValueError("该 Connector 已在运行")
     for path in drafts.glob("*.pending.json"):
         task = read_json(path)
-        if "answer" not in task:
+        if "answer" not in task and not task.get("awaiting_desktop") and task.get("transport") != "bridge":
             try:
                 client.call("POST", f"/api/connector/{task['id']}/result",
                             json={"lease": task["lease"], "action": "fail"})
@@ -212,7 +281,8 @@ def work(state, once=False, auth_dir=None):
                     notify_release_changes(state, client)
                     next_release_check = now + 6 * 60 * 60
                 notify_request_changes(state, config, client)
-                task = client.call("POST", "/api/connector/claim")
+                task = client.call("POST", "/api/connector/claim",
+                                   json={"exclude_runtime": "codex-desktop"})
                 if task:
                     path = drafts / (task["id"] + ".pending.json")
                     save_json(path, task)

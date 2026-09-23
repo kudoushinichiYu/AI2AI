@@ -7,7 +7,7 @@ from peerlink import __version__
 from peerlink.client import Client
 
 
-PLUGIN_VERSION = "0.4.0+codex.20260923"
+PLUGIN_VERSION = "0.5.0+codex.20260923"
 PLUGIN_MARKETPLACE = "peerlink-team"
 PLUGIN_ID = "peerlink@peerlink-team"
 PUBLIC_HUB = "https://peerlink.jd.com"

@@ -4,9 +4,11 @@
 
 本文包含管理员部署、成员安装、协作流程、Skill、实验性 Codex 接入及运维说明。所有 shell 命令均在仓库根目录执行；带尖括号的参数需要替换为实际值。
 
+> 本文仍保留旧版 Connector/Mock/Docker 操作细节。新成员请先按[新版成员手册](member-guide.zh-CN.md)使用 Bridge。0.5.0 已上线；公网 WSS Echo 测试的范围与未完成项见[迁移说明](peerlink-bridge-migration.zh-CN.md)。
+
 Peerlink 是一个可自行部署的轻量级项目 Agent 协作工具，适用于学校实验室、研究小组和小型研发团队。团队部署一套共享服务，成员安装本地客户端，就能在本人授权下，让其他成员向自己的项目 Agent 提问。
 
-**服务端统一管理身份、项目映射和审批；本地 Connector 在成员自己的项目中执行 Agent，答案经本人确认后才上传。** 服务端可以部署在实验室服务器、团队内网服务器或云服务器，不要求使用公有云。
+**服务端统一管理身份、Agent 元数据和审批；本地 Bridge 在成员自己的项目中执行 Agent，答案经本人确认后才上传。** 本机绝对路径不发给云端。服务端可以部署在实验室服务器、团队内网服务器或云服务器，不要求使用公有云。
 
 例如，实验室在一台共享服务器上部署 Peerlink，每位成员注册自己的研究项目。其他成员可以询问实验设置、代码结构或设计决策，项目负责人批准后，由其本地 Agent 整理答案，再由本人确认发送。成员既可以是提问方，也可以是项目提供方，不绑定任何特定人物或项目。
 
@@ -19,12 +21,13 @@ Compose 项目名也统一为 `peerlink`。已有 Compose 部署升级时，应�
 ## 当前能用到什么程度
 
 - 云端 API + 中文 Web 页面：联系人、注册项目查询、提问、批准/拒绝、取消和查看结果。
-- 本地 Connector：注册设备和项目路径、轮询领取已批准请求、租约续期、本地草稿、人工确认发送。
+- 本地 Connector：注册设备和项目路径、审批后通知、轻量运行时轮询、本地草稿、人工确认发送。
 - 用户名密码登录与设备凭证分离；设备无权批准请求或查询别人的请求。
 - 本地 CLI 和可复制安装的 Skill；无需第一版就实现 MCP，Agent 可通过 CLI 提问及查结果。
-- **Mock Runtime 已提供端到端测试，不读取项目、不调用模型；Codex Docker 适配器需在安装 Docker、配置专用认证后单独验证。**
+- **推荐轻量模式 `codex-desktop`：通过 Codex 桌面端的 Peerlink Skill 处理已批准请求，无需 Codex CLI 或 Docker；需要安装 Peerlink CLI/Skill，用户主动调用，不会后台唤醒桌面应用。**
+- Mock Runtime 已提供端到端测试，不读取项目、不调用模型；可选的 `codex-docker` 隔离适配器仍需在目标机器单独验证。
 
-尚未实现：Claude Code、MCP Server、原会话自动推送、Peer Session 恢复和自动更新。仓库已提供 Codex 插件源码以及 macOS/Linux 后台 Connector 安装命令。当前每个请求使用独立临时会话，避免不同提问者共享会话造成信息串流。
+尚未实现：后台自动唤醒 Codex 桌面会话、Claude Code、MCP Server、Peer Session 恢复。后台 Connector 可通知请求获批，但成员要在 Codex Desktop 主动调用 Peerlink Skill。Docker 运行时使用独立临时会话；桌面 Skill 在当前会话中处理问题。
 
 ## 1. 管理员：部署共享服务
 
@@ -91,7 +94,7 @@ peerlink catalog
 **希望别人向自己的项目提问**：继续注册设备及愿意开放协作的项目：
 
 ```bash
-peerlink project-add <项目标识> /实际/项目/绝对路径 --runtime mock --description '项目简介'
+peerlink project-add <项目标识> /实际/项目/绝对路径 --runtime codex-desktop --description '项目简介'
 peerlink service-install
 ```
 
@@ -101,7 +104,7 @@ peerlink service-install
 
 状态默认位于 `~/.peerlink`。配对后只保存可单独撤销的设备凭证，不保存账号密码。该设备凭证可用于提问和查收回复，但不能代替用户审批请求。
 
-`service-install` 会安装 macOS launchd 或 Linux systemd 用户级服务，登录后自动运行，并在待审批问题、草稿完成和回复完成时弹出系统通知。用 `peerlink service-status` 检查状态。团队服务器仍不能越过本人审批启动 Agent，也不能自动发送未审核草稿。设备离线时，已批准请求等待该设备上线。
+`service-install` 会安装 macOS launchd 或 Linux systemd 用户级服务，登录后自动运行，并在新问题、审批完成和收到回复时弹出系统通知。对 `codex-desktop` 项目，它只通知，不领取任务或自动唤醒 Codex Desktop；需要在桌面端主动调用 Peerlink Skill。用 `peerlink service-status` 检查状态。Hub 仍不能越过本人审批，也不能自动发送未审核草稿。
 
 一期每个“用户＋项目”绑定一台设备。变更路径、Runtime 或设备前先用 `peerlink project-remove <项目标识>` 撤销，旧请求随之取消，再重新注册和发起请求。
 
@@ -148,7 +151,22 @@ peerlink skill-install
 
 重新加载 Codex 后，可直接说“通过 Peerlink 向某成员的某项目提问”或“查看 Peerlink 回复”。Skill 使用已配对设备的凭证，不保存账号密码，也不能替本人审批或发送草稿。
 
-## 5. 真实 Codex 接入（实验性）
+## 5. Codex 桌面端轻量接入
+
+项目提供方绑定路径时推荐选择：
+
+```bash
+peerlink project-add <项目标识> /实际/项目/绝对路径 --runtime codex-desktop
+peerlink service-install
+```
+
+不需要安装 Codex CLI、下载 Docker 虚拟机或构建 Peerlink 专用镜像；仍需安装 Peerlink CLI 和 Codex Peerlink Skill。`service-install` 是轻量本地通知/轮询服务：请求获批时通知成员，但不会自动启动、唤醒或控制 Codex Desktop。
+
+收到通知后，在 Codex Desktop 中主动调用 Peerlink Skill。Skill 使用 `peerlink desktop-context <请求ID>` 检查审批状态和本机已绑定路径；路径必须与当前 Codex 工作区对应。Codex 读取相关文件并先展示答案。用户要求保存后，Skill 执行 `peerlink desktop-submit <请求ID>`：它才向 Hub 领取该请求并把答案保存为本地草稿，答案正文仍不上传。最后由用户运行 `peerlink review <请求ID>` 检查，并在明确确认后运行 `--send`。
+
+**桌面模式的边界：** Codex Desktop 只能在其自身已授权的工作区/文件访问范围内读取本地项目；Peerlink 能验证注册路径，但不能像容器那样强制系统级文件隔离。只对可信团队开放项目，按 Codex Desktop 的权限提示确认访问范围。OpenAI 说明 Codex Desktop 可打开本地文件夹并在用户授予权限后处理本地文件，参见[桌面端使用说明](https://help.openai.com/en/articles/20001275/)；当前没有依赖桌面 UI 自动化的后台唤醒功能。
+
+## 6. 可选：Codex Docker 隔离运行时（实验性）
 
 仅设置 `codex --sandbox read-only` 不代表只能读项目目录。因此该适配器不直接在宿主机运行 Codex，而是在本地 Docker 容器里挂载项目只读目录，不挂载整个 Home、SSH 密钥、Docker Socket 或其他项目。
 
@@ -171,17 +189,17 @@ peerlink work --auth-dir /实际/专用认证目录
 
 适配参数参考：[Codex 非交互执行官方文档](https://developers.openai.com/codex/noninteractive)。Docker 镜像和真实模型调用必须在目标机器上另行验收，Mock 流程通过不能证明真实模型适配已通过。
 
-## 6. 管理员：运维、备份与迁移
+## 7. 管理员：运维、备份与迁移
 
 - 数据位于持久化卷 `hub-data`。重建容器不会丢数据，`docker compose down -v` 会删除数据，不要误用。
 - 数据库备份建议用 SQLite 在线 backup API；不要只复制正在使用中的 `.db` 而遗漏 WAL。迁移现有数据库时，先停服务或制作一致性备份，再恢复到卷中的 `/data/hub.db`，确保容器 UID 10001 可读写。URL 更改也需要更新每位用户本地配置中的 `hub`。
 - 实验室服务器需要允许成员设备通过 HTTPS 访问 Hub。仅部署 Hub 不会把成员项目或模型环境迁移到服务器，也不会让离线的个人设备继续执行任务。
 
-当前使用 **SQLite WAL + 单实例 Hub + HTTP 轮询**，便于首版部署；不是原方案中 PostgreSQL/WebSocket 的完整实现。不做自动租约接管：执行超时标记失败，重新提问需重新审批，以避免失联的旧进程和新设备重复执行。生产化后再迁移 PostgreSQL、加入通知推送与安全的任务恢复机制。
+当前使用 **SQLite WAL + 单实例 Hub**；新 Bridge 使用出站 WebSocket，旧 Runtime 在迁移期仍使用 HTTP 轮询。不做自动租约接管：执行超时标记失败，重新提问需重新审批，以避免失联的旧进程和新设备重复执行。
 
 正式对外前还需：SSO/短期凭证及轮换、联系人权限策略、注册防滥用、限流、数据保留与清理、审计查询、监控告警、备份恢复演练、并发压测和前端浏览器验收。当前所有已批准用户属于同一受信任试用组，可看到项目名称并发起请求，但执行仍需本人批准；管理员审批是人工信任判断，不能替代身份验证。
 
-## 7. 开发与验证
+## 8. 开发与验证
 
 ```bash
 python -m pip install -e '.[test]'

@@ -1,146 +1,89 @@
 # Peerlink 成员手册
 
-[管理员手册](admin-guide.zh-CN.md) | [English](member-guide.md) | [完整使用指南](guide.zh-CN.md) | [返回项目首页](../README.zh-CN.md)
+[管理员手册](admin-guide.zh-CN.md) | [English](member-guide.md) | [完整指南](guide.zh-CN.md) | [返回项目首页](../README.zh-CN.md)
 
-本手册面向普通成员和项目负责人，覆盖注册、安装 Codex 插件、设备配对、项目路径绑定、提问和回复。
+Peerlink 把云端项目名册与本机 Agent 分开：服务器只负责账号、审批和转发；项目路径与执行留在成员电脑。每条请求必须由项目负责人在网页批准，生成的草稿也必须由本人审核后发送。
 
-## 1. 注册与登录
+> **发布状态：** Bridge 0.5.0 与 CLI wheel 已发布到 `peerlink.jd.com`；一次公网 WSS Echo 请求完成了本人批准和审核发送。已有旧版 CLI 或插件的成员须先更新再使用 `agent add`；真实 Codex 模型和两个不同成员的实测仍待完成。
 
-1. 打开 [https://peerlink.jd.com/](https://peerlink.jd.com/)。
-2. 使用自己的 ERP 用户名和独立密码提交注册。
-3. 等待管理员批准。
-4. 批准后使用同一用户名和密码登录。
+## 1. 注册、安装和配对
 
-不要使用他人账号，也不要把密码提供给 Codex。Codex 只使用一次性配对码绑定这台电脑。
+1. 打开 [Peerlink](https://peerlink.jd.com/)，用自己的 ERP 用户名和 Peerlink 密码申请注册，等待管理员批准。
+2. 在 macOS 或 Linux 上安装 Python 3.10+ 和 Peerlink 轻量客户端：
 
-## 2. 安装轻量客户端和 Codex 插件
+   ```bash
+   python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink.whl
+   peerlink skill-install
+   peerlink status
+   ```
 
-需要 Python 3.10+ 的 macOS 或 Linux。
+   在 Codex 桌面端新建任务后即可使用 Peerlink Skill；不需要另外安装 Codex CLI 插件。后续更新 CLI 后运行 `peerlink skill-install --force` 更新 Skill，安装前先确认来源与版本。
+3. 在网页“连接这台电脑”生成一次性配对码，按网页生成的命令运行 `peerlink connect`。密码不交给 Codex，配对码只使用一次。
 
-```bash
-python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink.whl
-codex plugin marketplace add kudoushinichiYu/peerlink --ref main
-codex plugin add peerlink@peerlink-team
-```
+多账号分别使用独立 `--state`，例如 `~/.peerlink-yujunjie.50`。以后所有 Peerlink 命令必须显式传同一 `--state`，或在当前终端设置 `PEERLINK_STATE`。从 Dock 启动的 Codex 不会继承此前终端的环境变量；请让 Skill 显式使用正确状态目录。不要打印或上传其中的 `connector.json`。
 
-安装后新建一个 Codex 任务，使插件与 Skill 生效。可用以下命令检查：
+## 2. 首次开放本机项目
 
-```bash
-peerlink --help
-peerlink status
-peerlink update-check
-codex plugin list
-```
+先运行 `peerlink catalog` 查看管理员已创建或批准的项目。逐个决定是否开放，不必把本机所有项目都注册。
 
-`status` 在未配对时会返回 `paired: false`，这是正常状态。
-
-Peerlink Skill 每次被调用时会检查客户端和插件版本；如果已安装后台 Connector，也会定期检查并发送桌面通知。检查不会自动安装。首次上线时，旧版客户端需要从网页复制更新命令完成一次升级；之后可由 Codex 提醒。确认更新后，客户端按 `peerlink update-check` 输出的命令升级；插件需刷新 Marketplace，再移除并重新安装 Peerlink 插件。也可以在网页查看当前发布版本和更新命令。
-
-## 3. 配对这台电脑
-
-1. 登录 Peerlink 网页。
-2. 在“我的设备”点击“生成设备配对码”。
-3. 在十分钟内对 Codex 说：“帮我绑定 Peerlink，配对码是 ……”。
-
-Codex 会调用：
+推荐的轻量 Bridge 联通测试：
 
 ```bash
-peerlink connect --hub https://peerlink.jd.com --name <设备名称> --code <配对码>
+peerlink agent add ai-outbound /本机/AI外呼目录 --backend echo --visibility team
+peerlink service-install
+peerlink service-status
 ```
 
-配对码仅限一次。本机最终只保存 `~/.peerlink/connector.json` 中的设备凭证；不要打印、上传或提交该文件。
+`echo` 不读取项目、也不调用模型，只用于验证两台电脑之间的审批与消息链路。确认链路正常且本机有支持 `codex app-server` 的可执行程序后，改用 `--backend codex-app-server` 注册真实本地 Agent。该模式启动**独立的本机 app-server 进程**；它不会唤起或操作已打开的 Codex 桌面会话，也不需要 Docker。仅安装 Codex 桌面应用而没有 app-server 可执行程序时，请使用下面的手动 Skill 模式。
 
-## 4. 首次绑定项目路径
+`--visibility private` 是默认值，只能本人测试；要让其他成员提问，使用 `team` 或 `allowlist --allow-user <ERP用户名>`。本机路径只保存在 `agents.json`，不会作为 Agent 元数据发到服务器。不要注册 `/`、整个 Home 或凭证目录。服务需要电脑保持在线；Bridge 仅主动连接服务器，不在本机开放监听端口。
 
-配对后，对 Codex 说：“用 Peerlink 完成本机项目初始化。”Codex 会先读取：
+如果只有 Codex 桌面端、没有 app-server 可执行程序，可继续手动回答：
 
 ```bash
-peerlink catalog
+peerlink project-add ai-outbound /本机/AI外呼目录 --runtime codex-desktop
+peerlink service-install
 ```
 
-然后逐个向你确认本地路径和 Runtime。你可以跳过本机没有或不愿分享的项目。确认后会执行：
+此模式在网页批准后，由你在已打开对应项目的 Codex 桌面任务中调用 Peerlink Skill；后台服务只通知，不会自动唤醒现有任务。旧版 `codex-docker` 是可选实验模式，不是新成员的默认安装步骤。
 
-```bash
-peerlink project-add <项目标识> /本地/绝对路径 --runtime <mock|codex-docker> --description '<说明>'
-```
+云端目录缺少项目时，先在网页申请或运行 `peerlink project-propose <项目标识> '<说明>'`，等待管理员批准后再绑定本机目录。
 
-- 不允许绑定 `/` 或整个 Home 目录。
-- 云端只收到路径映射和说明，不会因此上传仓库内容。
-- `mock` 只用于流程验证；`codex-docker` 需要单独准备镜像和专用认证目录。
+## 3. 提问与查看答案
 
-## 5. 申请新项目
-
-云端目录中没有目标项目时，可在网页填写项目标识和说明，或执行：
-
-```bash
-peerlink project-propose <项目标识> '<项目说明>'
-```
-
-申请状态为 `PENDING`。管理员批准后，重新运行 `peerlink catalog`，再绑定本地路径。
-
-## 6. 向其他项目提问
-
-可以直接对 Codex 说：“通过 Peerlink 向 owner 的 ai-outbound 项目询问……”Codex 会先确认成员和项目：
+网页“提问与请求”会列出可访问的项目及 Bridge 在线状态。也可以让 Codex Skill 调用：
 
 ```bash
 peerlink peers
-peerlink projects <成员>
-peerlink ask <成员> <项目标识> '<问题>'
-```
-
-提交后保留请求 ID。查询进度和答案：
-
-```bash
+peerlink projects <成员ERP用户名>
+peerlink ask <成员ERP用户名> <项目标识> '<问题>'
 peerlink requests
 peerlink get <请求ID>
 ```
 
-只有 `COMPLETED` 且包含 `response` 时才是最终答案。
+`peerlink ask` 对新 Bridge Agent 自动使用 Relay 消息接口；`peerlink send` 可显式指定 `--thread` 和 `--message-id`。只有状态 `COMPLETED` 且含 `response` 才是最终答案。私有 Agent 对其他人不可见；对方设备离线时，新 Bridge 请求会明确报 `DEVICE_OFFLINE`，而非假装已送达。
 
-## 7. 安装后台 Connector
+## 4. 处理别人发来的问题
 
-项目提供方只需安装一次轻量后台服务，之后登录电脑时会自动启动：
-
-```bash
-peerlink service-install --auth-dir /实际/专用/Codex认证目录
-peerlink service-status
-```
-
-它会定期向 Hub 查询本人的任务，收到待审批问题、本地草稿完成或自己的问题收到回复时，弹出 macOS/Linux 系统通知。后台服务不能自动批准问题，也不能自动发送草稿。
-
-如果只做 Mock 流程验证，可以不传 `--auth-dir`。不再共享本机项目时，可运行 `peerlink service-remove`。
-
-## 8. 处理别人对自己项目的问题
-
-1. 在网页审查问题，由本人批准或拒绝执行。
-2. 后台 Connector 会自动读取已批准任务。如果没有安装后台服务，可手动运行一次：
-
-   ```bash
-   peerlink work --once
-   ```
-
-3. 检查本地草稿：
+1. 在网页逐条查看问题，由本人批准或拒绝。Bridge 获批后才把具体问题交给本机执行；未批准的请求不会自动运行。
+2. Bridge Echo 或 Codex app-server 执行完只在本机保存草稿，服务器此时只知道“草稿待审核”，看不到正文。收到通知后运行：
 
    ```bash
    peerlink review
    peerlink review <请求ID>
    ```
 
-4. 只有在阅读并明确确认答案可以分享后，才执行：
+3. 本人读完并确认可分享，才执行 `peerlink review <请求ID> --send`；不应分享则用 `--reject`。不要让自动化代替本人批准或发送。
 
-   ```bash
-   peerlink review <请求ID> --send
-   ```
+手动 `codex-desktop` 模式：网页批准后，在 Codex 桌面端调用 Skill。Skill 用 `peerlink desktop-context <请求ID>` 核对项目、授权路径和状态，阅读相关文件，先向你展示答案；你确认保存后才用 `peerlink desktop-submit <请求ID>` 保存本地草稿。之后仍按上面的 `review` 两步审核、发送。
 
-Codex 不能替你批准请求，也不能把未经阅读的草稿自动发送。
+## 5. 常见问题
 
-## 9. 常见问题
+- `peerlink: command not found`：确认 Python 用户级 bin 目录在 `PATH` 中。
+- 项目无法注册：先确认 `peerlink catalog` 中项目为 `ACTIVE`。
+- Agent 不可见：检查可见范围、成员是否激活及设备是否在线。
+- `DEVICE_OFFLINE`：在项目提供方电脑上检查 `peerlink service-status` 与 Bridge 日志。
+- 只有 Codex 桌面应用却无法自动回答：选用手动 `codex-desktop`；自动起草需要独立可执行的 `codex app-server`。
+- 配对码无效：在网页重新生成；配对码十分钟有效且仅能用一次。
 
-- **`peerlink: command not found`**：重新安装客户端，并确认用户级 Python bin 目录在 `PATH` 中。
-- **配对码无效**：配对码已过期或使用过，在网页重新生成。
-- **项目无法绑定**：先确认 `peerlink catalog` 中项目为 `ACTIVE`。
-- **请求一直等待**：接收方尚未批准，或其 Connector 没有在线。
-- **设备凭证失效**：在网页重新配对，不要恢复旧 Token。
-- **修改密码或撤销会话后退出**：重新用当前密码登录。
-
-更详细的 Docker Runtime、运维和安全边界见[完整指南](guide.zh-CN.md)。
+完整设计与当前阶段边界见[本地 Agent Bridge 迁移说明](peerlink-bridge-migration.zh-CN.md)。

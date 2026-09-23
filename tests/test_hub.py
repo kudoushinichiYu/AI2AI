@@ -35,7 +35,9 @@ def test_workspace_explains_new_member_setup_and_account_isolation(tmp_path):
     assert "网页只生成命令，不上传路径或文件" in page.text
     assert 'id="binding-path"' in page.text
     assert 'id="release-notice"' in page.text
-    assert "/app.js?v=20260923-update-check" in page.text
+    assert "/app.js?v=20260923-local-agent-bridge" in page.text
+    assert "Bridge 联通验证（不调用模型）" in page.text
+    assert "没有 app-server 可执行程序时请选择手动 Skill 模式" in page.text
     assert 'export PEERLINK_STATE="$HOME/.peerlink-${owner.replace' in script.text
     assert "project-add" in script.text
 
@@ -144,7 +146,7 @@ def test_unpaired_status_is_a_normal_json_state(tmp_path):
 
     assert result.returncode == 0
     assert json.loads(result.stdout) == {
-        "paired": False, "owner": None, "device": None, "hub": None, "projects": []}
+        "paired": False, "owner": None, "device": None, "hub": None, "projects": [], "agents": []}
     assert "Traceback" not in result.stderr
 
 
@@ -302,6 +304,26 @@ def test_complete_flow_and_no_draft_upload(setup):
         assert conn.execute("SELECT count(*) FROM audit WHERE request=?", (task["id"],)).fetchone()[0] == 5
 
 
+def test_codex_desktop_claim_is_explicit_and_can_target_request(setup):
+    app, client, headers, device = setup
+    removed = client.delete("/api/projects/recommendation", headers=headers["device"])
+    assert removed.status_code == 200
+    update = client.put("/api/projects", headers=headers["device"], json={
+        "id": "recommendation", "path": "/private/bob/recommendation", "runtime": "codex-desktop"})
+    assert update.status_code == 200
+    first_id = approved(setup)
+    target_id = approved(setup)
+
+    assert client.post("/api/connector/claim", headers=headers["device"], json={
+        "exclude_runtime": "codex-desktop"}).json() is None
+    task = client.post("/api/connector/claim", headers=headers["device"], json={
+        "request_id": target_id}).json()
+
+    assert task["id"] == target_id
+    assert task["sender"] == "alex"
+    assert client.get(f"/api/requests/{first_id}", headers=headers["bob"]).json()["status"] == "WAITING_DEVICE"
+
+
 @pytest.mark.parametrize("identity", ["alex", "carol", "device"])
 def test_only_recipient_can_approve(setup, identity):
     app, client, headers, device = setup
@@ -313,7 +335,7 @@ def test_only_recipient_can_approve(setup, identity):
 def test_private_paths_and_requests(setup):
     app, client, headers, device = setup
     assert "path" not in client.get("/api/projects?owner=bob", headers=headers["alex"]).json()[0]
-    assert "path" in client.get("/api/projects?owner=bob", headers=headers["bob"]).json()[0]
+    assert "path" not in client.get("/api/projects?owner=bob", headers=headers["bob"]).json()[0]
     request_id = question(client, headers)
     assert client.get(f"/api/requests/{request_id}", headers=headers["carol"]).status_code == 403
     assert client.get("/api/requests").status_code == 401
@@ -510,10 +532,12 @@ def test_stale_execution_cannot_send(setup, change):
         "action": "draft_ready", "lease": task["lease"]}).status_code in (401, 409)
 
 
-def test_project_rebinding_requires_unregister(setup):
+def test_project_rebinding_requires_original_device_and_runtime(setup):
     app, client, headers, device = setup
     assert client.put("/api/projects", headers=headers["device"], json={
-        "id": "recommendation", "path": "/different", "runtime": "mock"}).status_code == 409
+        "id": "recommendation", "path": "/different", "runtime": "mock"}).status_code == 200
+    assert client.put("/api/projects", headers=headers["device"], json={
+        "id": "recommendation", "runtime": "codex-desktop"}).status_code == 409
     another = client.post("/api/devices", headers=headers["bob"], json={"name": "second"}).json()
     assert client.put("/api/projects", headers={"Authorization": "Bearer " + another["token"]}, json={
         "id": "recommendation", "path": "/different", "runtime": "mock"}).status_code == 409

@@ -22,6 +22,7 @@ const statusLabels = {
   DISABLED: ["已停用", "bad"],
   COMPLETED: ["已完成", "good"],
   WAITING_APPROVAL: ["待你批准", "wait"],
+  WAITING_DEVICE: ["已批准，等待本机执行", "wait"],
   WAITING_OUTPUT_APPROVAL: ["待本地审核", "wait"],
   RUNNING: ["执行中", ""],
   FAILED: ["失败", "bad"],
@@ -247,7 +248,11 @@ async function loadCatalog() {
 }
 
 async function loadOwnProjects() {
-  ownProjects = await api(`/api/projects?owner=${encodeURIComponent(owner)}`);
+  const [legacy, agents] = await Promise.all([
+    api(`/api/projects?owner=${encodeURIComponent(owner)}`),
+    api(`/api/bridge/agents?owner=${encodeURIComponent(owner)}`)
+  ]);
+  ownProjects = [...legacy, ...agents.map(agent => ({...agent, runtime: "bridge"}))];
   populateBindingProjects();
   updateOverview();
 }
@@ -268,8 +273,16 @@ async function loadPeerProjects() {
     picker.replaceChildren(new Option("先选择项目负责人", ""));
     return;
   }
-  const projects = await api(`/api/projects?owner=${encodeURIComponent(el("peer").value)}`);
-  picker.replaceChildren(...projects.map(project => new Option(`${project.id} · ${project.runtime}`, project.id)));
+  const selectedOwner = encodeURIComponent(el("peer").value);
+  const [legacy, agents] = await Promise.all([
+    api(`/api/projects?owner=${selectedOwner}`),
+    api(`/api/bridge/agents?owner=${selectedOwner}`)
+  ]);
+  const projects = [...legacy.map(project => ({...project, transport: "legacy"})),
+    ...agents.map(agent => ({...agent, runtime: "bridge", transport: "bridge"}))];
+  picker.replaceChildren(...projects.map(project => new Option(
+    `${project.id} · ${project.runtime}${project.transport === "bridge" ? (project.online ? " · 在线" : " · 离线") : ""}`,
+    `${project.transport}:${project.id}`)));
   if (!projects.length) picker.replaceChildren(new Option("该成员还没有开放项目", ""));
 }
 
@@ -393,13 +406,9 @@ async function loadReleaseInfo() {
     el("release-plugin-version").textContent = release.plugin_version;
     el("release-notice").hidden = false;
     const cliCommand = `python3 -m pip install --user --upgrade ${shellQuote(`${location.origin}/downloads/peerlink.whl`)}`;
-    const pluginCommands = [
-      `codex plugin marketplace upgrade ${release.plugin_marketplace}`,
-      "codex plugin remove peerlink@peerlink-team",
-      "codex plugin add peerlink@peerlink-team"
-    ].join("\n");
+    const pluginCommands = "peerlink skill-install --force";
     el("copy-cli-update").onclick = () => copyText(cliCommand, "客户端更新命令已复制；运行前请确认。请在本机终端粘贴执行。");
-    el("copy-plugin-update").onclick = () => copyText(pluginCommands, "插件更新步骤已复制；移除和重装前请先确认。");
+    el("copy-plugin-update").onclick = () => copyText(pluginCommands, "Skill 更新命令已复制；请在安装新客户端后运行。");
   } catch {
     el("release-notice").hidden = true;
   }
@@ -504,14 +513,17 @@ el("generate-binding").onclick = () => {
   const stateName = owner.replace(/[^a-zA-Z0-9._-]/g, "-") || "member";
   const command = [
     `export PEERLINK_STATE="$HOME/.peerlink-${stateName}"`,
-    `peerlink --state "$PEERLINK_STATE" project-add ${shellQuote(project.id)} ${shellQuote(path)} --runtime ${shellQuote(runtime)} --description ${shellQuote(project.description || project.id)}`
+    runtime.startsWith("bridge-")
+      ? `peerlink --state "$PEERLINK_STATE" agent add ${shellQuote(project.id)} ${shellQuote(path)} --backend ${shellQuote(runtime.slice(7))} --visibility ${shellQuote(el("binding-visibility").value)} --description ${shellQuote(project.description || project.id)}`
+      : `peerlink --state "$PEERLINK_STATE" project-add ${shellQuote(project.id)} ${shellQuote(path)} --runtime ${shellQuote(runtime)} --description ${shellQuote(project.description || project.id)}`,
+    `peerlink --state "$PEERLINK_STATE" service-install`
   ].join("\n");
   el("binding-command").textContent = command;
   el("binding-command-wrap").hidden = false;
-  setMessage("workspace-message", "命令已在本页本地生成；路径尚未提交。复制并在本机终端运行后，映射才会写入 Hub。", "success");
+  setMessage("workspace-message", "命令已在本页生成；路径不会提交云端。复制并在本机终端运行后，云端仅保存项目标识和可见范围。", "success");
 };
 
-el("copy-binding").onclick = () => copyText(el("binding-command").textContent, "绑定命令已复制。执行后云端只保存路径映射与运行方式，不上传项目文件。");
+el("copy-binding").onclick = () => copyText(el("binding-command").textContent, "绑定命令已复制。项目路径只保存在这台电脑，不上传云端。");
 
 el("catalog-submit").onclick = () => safe(async () => {
   const id = el("catalog-id");
@@ -528,11 +540,15 @@ el("catalog-submit").onclick = () => safe(async () => {
 el("peer").onchange = () => safe(loadPeerProjects);
 el("ask").onclick = () => safe(async () => {
   const receiver = el("peer").value;
-  const project = el("project").value;
+  const [transport, project] = el("project").value.split(":", 2);
   const question = el("question").value.trim();
   if (!receiver || !project) throw new Error("先选择有开放项目的成员。");
   if (!question) throw new Error("请先写下你要询问的问题。");
-  await api("/api/requests", "POST", { receiver, project, question });
+  if (transport === "bridge") {
+    await api("/api/bridge/messages", "POST", { receiver, agent_id: project, content: question });
+  } else {
+    await api("/api/requests", "POST", { receiver, project, question });
+  }
   el("question").value = "";
   await loadRequests();
   setMessage("workspace-message", "请求已发送。对方批准并完成本地审核后，你会在收件箱看到回复。", "success");

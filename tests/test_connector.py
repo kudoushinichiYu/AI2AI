@@ -9,7 +9,8 @@ import httpx
 import pytest
 
 from peerlink.client import Client
-from peerlink.connector import notify_release_changes, notify_request_changes, run_runtime, save_json, validate_project
+from peerlink.connector import (desktop_context, desktop_submit, notify_release_changes,
+                                notify_request_changes, run_runtime, save_json, validate_project)
 from peerlink.hub import Store
 from peerlink.releases import check_releases
 
@@ -64,6 +65,64 @@ def test_codex_mount_options_cannot_be_injected(tmp_path):
     (tmp_path / "auth.json").write_text("{}")
     with pytest.raises(ValueError, match="逗号"):
         run_runtime({"runtime": "codex-docker", "path": "/project,readonly=false"}, "问题", tmp_path / "pending", tmp_path)
+
+
+def test_codex_desktop_context_requires_approved_bound_project(tmp_path, monkeypatch, capsys):
+    from peerlink.connector import configured
+
+    project_path = tmp_path / "project"
+    project_path.mkdir()
+    request_id = "a" * 24
+
+    class FakeClient:
+        def call(self, method, path):
+            assert method == "GET"
+            assert path == f"/api/requests/{request_id}"
+            return {"id": request_id, "sender": "alex", "receiver": "bob", "project": "demo",
+                    "question": "How does it work?", "status": "WAITING_DEVICE"}
+
+    monkeypatch.setattr("peerlink.connector.configured", lambda state: ({
+        "owner": "bob", "projects": {"demo": {"path": str(project_path), "runtime": "codex-desktop"}}
+    }, FakeClient()))
+
+    desktop_context(tmp_path, request_id)
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["project_path"] == str(project_path)
+    assert output["question"] == "How does it work?"
+
+
+def test_codex_desktop_submit_claims_and_keeps_answer_local(tmp_path, monkeypatch, capsys):
+    from peerlink.connector import configured
+
+    project_path = tmp_path / "project"
+    project_path.mkdir()
+    request_id = "b" * 24
+    calls = []
+
+    class FakeClient:
+        def call(self, method, path, **kwargs):
+            calls.append((method, path, kwargs))
+            if path == "/api/connector/claim":
+                assert kwargs["json"] == {"request_id": request_id}
+                return {"id": request_id, "sender": "alex", "receiver": "bob", "project": "demo",
+                        "device": "device", "question": "question", "lease": "lease-secret"}
+            assert path == f"/api/connector/{request_id}/result"
+            return {"status": "WAITING_OUTPUT_APPROVAL"}
+
+    monkeypatch.setattr("peerlink.connector.configured", lambda state: ({
+        "owner": "bob", "id": "device",
+        "projects": {"demo": {"path": str(project_path), "runtime": "codex-desktop"}}
+    }, FakeClient()))
+
+    desktop_submit(tmp_path, request_id, "  draft answer  ")
+
+    task = json.loads((tmp_path / "drafts" / f"{request_id}.pending.json").read_text())
+    assert task["answer"] == "draft answer"
+    assert task["runtime"] == "codex-desktop"
+    assert calls[-1][2]["json"] == {"lease": "lease-secret", "action": "draft_ready"}
+    assert "content" not in calls[-1][2]["json"]
+    assert "lease-secret" not in capsys.readouterr().out
 
 
 def test_request_notifications_are_deduplicated(tmp_path, monkeypatch):

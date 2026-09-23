@@ -13,6 +13,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from peerlink import __version__
+from peerlink.protocol import message_from_row
+from peerlink.relay import install_relay_routes
 from peerlink.releases import release_metadata
 
 
@@ -82,6 +84,11 @@ class Store:
                     id TEXT PRIMARY KEY, description TEXT NOT NULL,
                     status TEXT NOT NULL, created_by TEXT NOT NULL, created REAL NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS agent_registry (
+                    owner TEXT NOT NULL, id TEXT NOT NULL, device TEXT NOT NULL,
+                    description TEXT NOT NULL, visibility TEXT NOT NULL,
+                    allowlist TEXT NOT NULL, PRIMARY KEY(owner,id)
+                );
                 CREATE TABLE IF NOT EXISTS requests (
                     id TEXT PRIMARY KEY, sender TEXT NOT NULL, receiver TEXT NOT NULL,
                     project TEXT NOT NULL, device TEXT NOT NULL, question TEXT NOT NULL,
@@ -116,12 +123,22 @@ class Store:
                 conn.execute("ALTER TABLE users ADD COLUMN credential_kind TEXT NOT NULL DEFAULT 'LOGIN'")
             if "password_hash" not in columns:
                 conn.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
+            request_columns = {row["name"] for row in conn.execute("PRAGMA table_info(requests)")}
+            if "transport" not in request_columns:
+                conn.execute("ALTER TABLE requests ADD COLUMN transport TEXT NOT NULL DEFAULT 'legacy'")
+            if "thread_id" not in request_columns:
+                conn.execute("ALTER TABLE requests ADD COLUMN thread_id TEXT")
+            if "retain_until" not in request_columns:
+                conn.execute("ALTER TABLE requests ADD COLUMN retain_until REAL")
             conn.execute("UPDATE users SET status='ACTIVE' WHERE status=''")
             conn.execute("UPDATE users SET is_admin=1 "
                          "WHERE id=(SELECT id FROM users ORDER BY created,rowid LIMIT 1)")
             conn.execute("INSERT OR IGNORE INTO project_catalog(id,description,status,created_by,created) "
                          "SELECT id,MAX(description),'ACTIVE',MIN(owner),? FROM projects GROUP BY id",
                          (time.time(),))
+            # Older clients uploaded local paths. They remain in each owner's
+            # connector.json; the Relay does not need or retain them.
+            conn.execute("UPDATE projects SET path='' WHERE path<>''")
 
     @contextmanager
     def connect(self):
@@ -208,6 +225,7 @@ class Store:
             conn.execute("DELETE FROM sessions WHERE owner=?", (name,))
             conn.execute("DELETE FROM pairing_codes WHERE owner=?", (name,))
             conn.execute("DELETE FROM projects WHERE owner=?", (name,))
+            conn.execute("DELETE FROM agent_registry WHERE owner=?", (name,))
             conn.execute("DELETE FROM devices WHERE owner=?", (name,))
             conn.execute("UPDATE users SET status='DISABLED',token=? WHERE id=?",
                          (digest(secrets.token_urlsafe(32)), name))
@@ -232,9 +250,10 @@ class PairDeviceInput(DeviceInput):
 
 class ProjectInput(BaseModel):
     id: str = Field(pattern=r"^[a-zA-Z0-9_-]{1,80}$")
-    path: str = Field(min_length=1, max_length=2000)
+    # Older clients may still send a path. The Relay discards it.
+    path: Optional[str] = Field(default=None, max_length=2000)
     description: str = Field(default="", max_length=1000)
-    runtime: Literal["mock", "codex-docker"] = "mock"
+    runtime: Literal["mock", "codex-desktop", "codex-docker"] = "mock"
 
 
 class CatalogProjectInput(BaseModel):
@@ -271,6 +290,12 @@ class PasswordChangeInput(BaseModel):
 
 class LeaseInput(BaseModel):
     lease: str = Field(min_length=1, max_length=200)
+
+
+class ClaimInput(BaseModel):
+    request_id: Optional[str] = Field(default=None, pattern=r"^[0-9a-f]{24}$")
+    exclude_runtime: Optional[Literal["mock", "codex-desktop", "codex-docker"]] = None
+    transport: Literal["legacy", "bridge"] = "legacy"
 
 
 class ResultInput(LeaseInput):
@@ -334,6 +359,7 @@ def create_app(db_path=None):
                      (now,))
         for row in rows:
             audit_as(conn, row["id"], "system", "lease_expired")
+        conn.execute("DELETE FROM requests WHERE transport='bridge' AND retain_until<?", (now,))
 
     def load(conn, request_id):
         row = conn.execute("SELECT * FROM requests WHERE id=?", (request_id,)).fetchone()
@@ -511,6 +537,7 @@ def create_app(db_path=None):
             conn.execute("BEGIN IMMEDIATE")
             conn.execute("DELETE FROM devices WHERE id=? AND owner=?", (device_id, current["owner"]))
             conn.execute("DELETE FROM projects WHERE device=? AND owner=?", (device_id, current["owner"]))
+            conn.execute("DELETE FROM agent_registry WHERE device=? AND owner=?", (device_id, current["owner"]))
             cancel_requests(conn, "device=? AND receiver=?", (device_id, current["owner"]),
                             current["owner"], "device_revoked")
         return {"ok": True}
@@ -576,10 +603,10 @@ def create_app(db_path=None):
                                (current["owner"], body.id)).fetchone()
             if row and row["device"] != current["id"]:
                 raise HTTPException(409, "该项目已绑定其他设备；先撤销旧注册")
-            if row and any(row[key] != getattr(body, key) for key in ("path", "runtime")):
-                raise HTTPException(409, "路径或 Runtime 变更需要先撤销注册并重新授权")
+            if row and row["runtime"] != body.runtime:
+                raise HTTPException(409, "Runtime 变更需要先撤销注册并重新授权")
             conn.execute("INSERT OR REPLACE INTO projects VALUES (?,?,?,?,?,?)",
-                         (current["owner"], body.id, current["id"], body.path, body.description, body.runtime))
+                         (current["owner"], body.id, current["id"], "", body.description, body.runtime))
         return {"ok": True}
 
     @app.delete("/api/projects/{project_id}")
@@ -595,8 +622,6 @@ def create_app(db_path=None):
     @app.get("/api/projects")
     def projects(owner: str, current=Depends(member)):
         columns = "p.id,p.description,p.runtime,p.device"
-        if owner == current["owner"]:
-            columns += ",p.path"
         with store.connect() as conn:
             return [dict(row) for row in conn.execute(
                 "SELECT " + columns + " FROM projects p JOIN project_catalog c ON c.id=p.id "
@@ -622,7 +647,8 @@ def create_app(db_path=None):
     def requests(current=Depends(member)):
         with store.connect() as conn:
             expire(conn)
-            rows = conn.execute("SELECT id,sender,receiver,project,question,status,created,response,error "
+            rows = conn.execute("SELECT id,sender,receiver,project,question,status,created,response,error,"
+                                "transport,thread_id "
                                 "FROM requests WHERE sender=? OR receiver=? ORDER BY created DESC LIMIT 200",
                                 (current["owner"], current["owner"]))
             return [dict(row) for row in rows]
@@ -640,7 +666,7 @@ def create_app(db_path=None):
             return row
 
     @app.post("/api/requests/{request_id}/decision")
-    def decision(request_id: str, body: DecisionInput, current=Depends(actor)):
+    async def decision(request_id: str, body: DecisionInput, current=Depends(actor)):
         with store.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             row = load(conn, request_id)
@@ -657,28 +683,58 @@ def create_app(db_path=None):
                     raise HTTPException(403, "仅接收方可审批")
                 if row["status"] != "WAITING_APPROVAL":
                     raise HTTPException(409, "任务已审批")
+                if body.action == "approve" and row["transport"] == "bridge" and not app.state.relay.online(row["device"]):
+                    raise HTTPException(409, "DEVICE_OFFLINE")
                 status = "WAITING_DEVICE" if body.action == "approve" else "REJECTED"
             conn.execute("UPDATE requests SET status=? WHERE id=?", (status, request_id))
             event(conn, request_id, current, body.action)
+        if row["transport"] == "bridge" and body.action == "approve":
+            if not await app.state.relay.send(row["device"], message_from_row(row)):
+                with store.connect() as conn:
+                    conn.execute("UPDATE requests SET status='WAITING_APPROVAL' "
+                                 "WHERE id=? AND status='WAITING_DEVICE'", (request_id,))
+                    audit_as(conn, request_id, "system", "delivery_failed")
+                raise HTTPException(409, "DEVICE_OFFLINE")
+        elif row["transport"] == "bridge" and body.action == "cancel":
+            await app.state.relay.send(row["device"], {
+                "version": "1", "type": "agent.cancel", "message_id": request_id,
+            })
         return {"status": status}
 
     @app.post("/api/connector/claim")
-    def claim(current=Depends(device)):
+    def claim(body: Optional[ClaimInput] = None, current=Depends(device)):
         with store.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
             expire(conn)
             conn.execute("UPDATE devices SET seen=? WHERE id=?", (time.time(), current["id"]))
-            row = conn.execute("SELECT * FROM requests WHERE device=? AND receiver=? "
-                               "AND status='WAITING_DEVICE' ORDER BY created LIMIT 1",
-                               (current["id"], current["owner"])).fetchone()
+            transport = body.transport if body else "legacy"
+            if transport == "bridge":
+                query = ("SELECT r.* FROM requests r JOIN agent_registry a "
+                         "ON a.owner=r.receiver AND a.id=r.project AND a.device=r.device "
+                         "WHERE r.device=? AND r.receiver=? AND r.status='WAITING_DEVICE' "
+                         "AND r.transport='bridge'")
+            else:
+                query = ("SELECT r.* FROM requests r JOIN projects p "
+                         "ON p.owner=r.receiver AND p.id=r.project "
+                         "WHERE r.device=? AND r.receiver=? AND r.status='WAITING_DEVICE' "
+                         "AND r.transport='legacy'")
+            params = [current["id"], current["owner"]]
+            if body and body.request_id:
+                query += " AND r.id=?"
+                params.append(body.request_id)
+            if transport == "legacy" and body and body.exclude_runtime:
+                query += " AND p.runtime<>?"
+                params.append(body.exclude_runtime)
+            row = conn.execute(query + " ORDER BY r.created LIMIT 1", params).fetchone()
             if not row:
                 return None
             lease = secrets.token_urlsafe(24)
             conn.execute("UPDATE requests SET status='RUNNING',lease=?,expires=? WHERE id=?",
                          (lease, time.time() + 120, row["id"]))
             event(conn, row["id"], current, "claimed")
-            return {"id": row["id"], "receiver": row["receiver"], "project": row["project"],
-                    "device": row["device"], "question": row["question"], "lease": lease}
+            return {"id": row["id"], "sender": row["sender"], "receiver": row["receiver"], "project": row["project"],
+                    "device": row["device"], "question": row["question"], "lease": lease,
+                    "thread_id": row["thread_id"], "transport": row["transport"]}
 
     @app.post("/api/connector/{request_id}/heartbeat")
     def heartbeat(request_id: str, body: LeaseInput, current=Depends(device)):
@@ -712,4 +768,5 @@ def create_app(db_path=None):
             event(conn, request_id, current, body.action)
         return {"status": status}
 
+    install_relay_routes(app, store, member, device, digest, audit_as, expire)
     return app
