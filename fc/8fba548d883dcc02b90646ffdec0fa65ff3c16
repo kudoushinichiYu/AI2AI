@@ -1,0 +1,156 @@
+peerlink/bridge/__init__.py
+  s_2f75bfd3e049f0::t_fd988a4365556f 1
+peerlink/bridge/codex.py
+  s_2f75bfd3e049f0::t_efa9b6946e3681 1-8,10-30,32-35,37-39,41-54,56-115
+  s_2f75bfd3e049f0::t_3421f40c68272f 9,31
+  s_2f75bfd3e049f0::t_34c9eacde4c6ea 36,40,55
+README.zh-CN.md
+  s_2f75bfd3e049f0::t_aaf465b45364a3 14,87
+  s_2f75bfd3e049f0::t_a314e4b12ca998 10,21,30-32,34,60,64,88-91,93,98
+peerlink/__init__.py
+  s_2f75bfd3e049f0::t_f47e7a9199671d 3
+pyproject.toml
+  s_2f75bfd3e049f0::t_0c891e0789d5c9 10
+scripts/verify_local_bridge_request.py
+  s_2f75bfd3e049f0::t_c30df6b455b34e 1-152
+plugins/peerlink/skills/peerlink/SKILL.md
+  s_2f75bfd3e049f0::t_55bf5e79c6d5b3 12,16,19-20
+  s_2f75bfd3e049f0::t_3bfcefa43e2261 14,18,21-28
+  s_2f75bfd3e049f0::t_2cd93fd3c6fc1b 8
+docs/member-guide.zh-CN.md
+  s_2f75bfd3e049f0::t_19c9f290c684a4 3,5,9,11-12,14-18,20-21,23,25,27,29,32-34,37,39,41,44-45,48,50,52,54,58-59,64,66,68-69,76,78,80,82-87,89
+  s_2f75bfd3e049f0::t_aaf465b45364a3 7
+peerlink/connector.py
+  s_2f75bfd3e049f0::t_82d2cd0c6c0224 109-111,113-132,136,144-148,150-160
+  s_2f75bfd3e049f0::t_c325269c8fe410 104-108,112,133-135,137-143,149,161-166
+  s_2f75bfd3e049f0::t_e4e162b5b6a4d6 191-192,265
+  s_2f75bfd3e049f0::t_1f5d18872f514f 198-201,284-285
+docs/guide.zh-CN.md
+  s_2f75bfd3e049f0::t_aaf465b45364a3 7
+  s_2f75bfd3e049f0::t_55911c0158f89a 24,27-28,30,154-169
+  s_2f75bfd3e049f0::t_7bd2a556fea7bf 8,11,198
+  s_2f75bfd3e049f0::t_b215dfa06f069d 97,107,192,202
+docs/peerlink-bridge-migration.zh-CN.md
+  s_2f75bfd3e049f0::t_ace72e4be98d73 50-51
+  s_2f75bfd3e049f0::t_aa92c4184b2f0e 1-6,8-17,19-25,27-36
+  s_2f75bfd3e049f0::t_1f3bd995f5034d 18,49,66
+  s_2f75bfd3e049f0::t_9a4467535463d4 7,26,37,39-42,44-48
+  s_2f75bfd3e049f0::t_aaf465b45364a3 38,43,57-64
+  s_2f75bfd3e049f0::t_433d6bb8e67e98 52-56,65
+peerlink/protocol.py
+  s_2f75bfd3e049f0::t_a1e9ab0d3baaa8 1-46
+tests/test_bridge.py
+  s_2f75bfd3e049f0::t_b2ae0ebb70febb 139-142
+  s_2f75bfd3e049f0::t_90f37801f25684 3,5,7,9-10,143-206
+  s_2f75bfd3e049f0::t_6338ff1e296f66 4,14,207-214,216-234,236-245
+  s_2f75bfd3e049f0::t_994a590f572690 115-117
+  s_2f75bfd3e049f0::t_d4aade8cd20fe5 215,235
+  s_2f75bfd3e049f0::t_246aea2af5e90f 1-2,6,8,11-13,15-114,118-138
+tests/test_service.py
+  s_2f75bfd3e049f0::t_bbff3b8fa7d9f2 9,14,27,36-41
+peerlink/bridge/storage.py
+  s_2f75bfd3e049f0::t_64b4da15eb332f 3,26
+  s_2f75bfd3e049f0::t_fd988a4365556f 1-2,4-25,27-62
+peerlink/cli.py
+  s_2f75bfd3e049f0::t_e4e162b5b6a4d6 66-67,147
+  s_2f75bfd3e049f0::t_c29b92fff0a6f4 7,52-65,68-75,145-146,148-174,260-267
+  s_2f75bfd3e049f0::t_a0dbacf8ddf567 20-29,270,273
+  s_2f75bfd3e049f0::t_716a78015491aa 223,227,231-232
+  s_2f75bfd3e049f0::t_3421f40c68272f 269,271,274-282
+  s_2f75bfd3e049f0::t_bbff3b8fa7d9f2 186,189
+  s_2f75bfd3e049f0::t_3c971c5f44f29a 49,85-86,177-178
+  s_2f75bfd3e049f0::t_46cc2f529922ed 14-15,83-84,175-176
+  s_2f75bfd3e049f0::t_5cee142d017040 8,179
+  s_2f75bfd3e049f0::t_68fb18b6c63135 202-205
+peerlink/static/app.js
+  s_2f75bfd3e049f0::t_5f615dba073569 517
+  s_2f75bfd3e049f0::t_5c72a3981fdaa8 251-255,276-285,409,411,516,518-519,523,526,543,547-551
+  s_2f75bfd3e049f0::t_59253766d0c439 25
+docs/admin-guide.md
+  s_2f75bfd3e049f0::t_59253766d0c439 13
+tests/test_cli.py
+  s_2f75bfd3e049f0::t_82b31553c6a55b 1-28
+scripts/verify_online_bridge_request.py
+  s_2f75bfd3e049f0::t_93d3bfa19f2853 1-139
+peerlink/bridge/client.py
+  s_2f75bfd3e049f0::t_de5e8f87cff6ba 1-14,16-38,41-68,70-95,103-112,114-129,131-139,143-164,168-185
+  s_2f75bfd3e049f0::t_e4e162b5b6a4d6 15,130,140-142,186-187
+  s_2f75bfd3e049f0::t_64b4da15eb332f 39-40,69,96-98,102
+  s_2f75bfd3e049f0::t_3421f40c68272f 99-101,113
+  s_2f75bfd3e049f0::t_98ca6856552a51 165-167
+peerlink/bundled_skill/SKILL.md
+  s_2f75bfd3e049f0::t_02a8950c9758f2 12,14,20
+  s_2f75bfd3e049f0::t_8c86c9bbddbd2e 18,22-30
+  s_2f75bfd3e049f0::t_d313db7901419f 8
+skills/peerlink/SKILL.md
+  s_2f75bfd3e049f0::t_55bf5e79c6d5b3 12,14,19-20
+  s_2f75bfd3e049f0::t_78c6490fad511d 18,21-28
+peerlink/service.py
+  s_2f75bfd3e049f0::t_bbff3b8fa7d9f2 2,13-19,32,70,73,75-76,86,95,104-105,116-117,122
+  s_2f75bfd3e049f0::t_e4e162b5b6a4d6 21-22
+peerlink/releases.py
+  s_2f75bfd3e049f0::t_07c76d90e1f2b5 10
+peerlink/hub.py
+  s_2f75bfd3e049f0::t_3f4626abe87407 228,253-254,540
+  s_2f75bfd3e049f0::t_3c971c5f44f29a 256
+  s_2f75bfd3e049f0::t_01a47b9303ff63 16-17,298,362,650-651,669,686-687,691-701,710-720,725,736-737,771
+  s_2f75bfd3e049f0::t_4dccb9d2508974 606-607,609
+  s_2f75bfd3e049f0::t_470584517af20b 87-91,126-132,139-141
+  s_2f75bfd3e049f0::t_b8e8f6634330fa 295-297,299-300,705,721-724,726-728,735
+scripts/verify_local_bridge_link.py
+  s_2f75bfd3e049f0::t_f073bc33ed8fad 1-43,45-59,67-82,92-117,120-149
+  s_2f75bfd3e049f0::t_d62c9af33a3076 44,60-66,83-91,118-119
+peerlink/bridge/registry.py
+  s_2f75bfd3e049f0::t_fd988a4365556f 1-58
+peerlink/static/index.html
+  s_2f75bfd3e049f0::t_5f615dba073569 95-96,123,129-130,133,157
+plugins/peerlink/.codex-plugin/plugin.json
+  s_2f75bfd3e049f0::t_b5e0819415b2ed 3
+tests/test_connector.py
+  s_2f75bfd3e049f0::t_7a0c7eaa482a39 12-13,70-125
+tests/test_hub.py
+  s_2f75bfd3e049f0::t_716a78015491aa 149
+  s_2f75bfd3e049f0::t_81ec749904c5f0 307-308,311-326
+  s_2f75bfd3e049f0::t_b8bf9f054ec5e7 309-310
+  s_2f75bfd3e049f0::t_7672bb021f0332 338,535,538-540
+  s_2f75bfd3e049f0::t_e290d435400e41 38
+  s_2f75bfd3e049f0::t_ea1f60fa7a6128 39
+  s_2f75bfd3e049f0::t_eb27b280771bbd 40
+docs/peerlink-local-agent-bridge-proposal.zh-CN.md
+  s_2f75bfd3e049f0::t_85280de17c61de 1-2419
+peerlink/bridge/backends.py
+  s_2f75bfd3e049f0::t_efa9b6946e3681 1-32
+peerlink/relay.py
+  s_2f75bfd3e049f0::t_591368abcd3a64 1-10,13-195,197-226,238-240
+  s_2f75bfd3e049f0::t_98ca6856552a51 11-12,196,227-237
+docs/member-guide.md
+  s_2f75bfd3e049f0::t_aaf465b45364a3 7
+  s_2f75bfd3e049f0::t_688245c0d74c99 16,20,58
+  s_2f75bfd3e049f0::t_88ac9d6a53b1e6 71-74,81
+  s_2f75bfd3e049f0::t_f89d2bb6d2c1f1 5,12,19,22,26,51,62,66-68
+README.md
+  s_2f75bfd3e049f0::t_aaf465b45364a3 14,87
+  s_2f75bfd3e049f0::t_a314e4b12ca998 10,21,30-32,34,60,64,88-91,93,98
+docs/admin-guide.zh-CN.md
+  s_2f75bfd3e049f0::t_7bd2a556fea7bf 38,48
+docs/guide.md
+  s_2f75bfd3e049f0::t_7bd2a556fea7bf 181
+  s_2f75bfd3e049f0::t_bd79744bd66cdf 5,69,73,79,100-106,137-147,172,195
+  s_2f75bfd3e049f0::t_aaf465b45364a3 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "fc8fba548d883dcc02b90646ffdec0fa65ff3c16",
+  "prompts": {},
+  "sessions": {
+    "s_2f75bfd3e049f0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c2ff-22f2-7123-a418-c80eee7dba32",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "kudoushinichiYu <2449315540@qq.com>"
+    }
+  }
+}
