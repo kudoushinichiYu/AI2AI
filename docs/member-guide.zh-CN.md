@@ -2,6 +2,8 @@
 
 [管理员手册](admin-guide.zh-CN.md) | [English](member-guide.md) | [完整指南](guide.zh-CN.md) | [返回项目首页](../README.zh-CN.md)
 
+准备和另一位成员第一次联调？先看[两台电脑、两个账号的 Echo 测试操作单](two-member-echo-test.zh-CN.md)，再按本文了解完整功能。
+
 Peerlink 把云端项目名册与本机 Agent 分开：服务器只负责账号、审批和转发；项目路径与执行留在成员电脑。每条请求必须由项目负责人在网页批准，生成的草稿也必须由本人审核后发送。
 
 > **发布状态：** Bridge 0.5.0 与 CLI wheel 已发布到 `peerlink.jd.com`；一次公网 WSS Echo 请求完成了本人批准和审核发送。已有旧版 CLI 或插件的成员须先更新再使用 `agent add`；真实 Codex 模型和两个不同成员的实测仍待完成。
