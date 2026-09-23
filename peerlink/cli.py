@@ -135,12 +135,18 @@ def main():
         print(f"本地设备已绑定账号 {result['owner']}；配对码已失效")
         client.http.close()
         return
-    config, client = configured(state)
     if args.command == "status":
-        print(json.dumps({"owner": config["owner"], "device": config["id"],
-                          "hub": config["hub"], "projects": list(config["projects"])},
+        config_path = state / "connector.json"
+        if not config_path.is_file():
+            print(json.dumps({"paired": False, "owner": None, "device": None,
+                              "hub": None, "projects": []}, ensure_ascii=False, indent=2))
+            return
+        config = json.loads(config_path.read_text())
+        print(json.dumps({"paired": True, "owner": config["owner"], "device": config["id"],
+                          "hub": config["hub"], "projects": list(config.get("projects", {}))},
                          ensure_ascii=False, indent=2))
         return
+    config, client = configured(state)
     if args.command == "catalog":
         print(json.dumps(client.call("GET", "/api/catalog/projects"), ensure_ascii=False, indent=2))
         return

@@ -11,7 +11,8 @@
   <main id="workspace" hidden>
     <div class="topbar"><div><strong id="identity"></strong><div class="muted">已安全登录</div></div><div><button id="refresh" class="secondary">刷新</button><button id="logout" class="secondary">退出</button></div></div>
     <div class="workspace">
-      <section id="admin" class="card"><h2>用户管理</h2><p class="muted">审批或拒绝待处理的 ERP 注册申请。</p><div id="users"></div></section>
+      <section id="admin" class="card"><h2>用户管理</h2><p class="muted">审批新注册，或停用与重新启用现有成员账号。</p><div id="users"></div></section>
+      <section class="card"><h2>账号安全</h2><div class="grid"><div class="field"><label for="current-password">当前密码</label><input id="current-password" type="password" autocomplete="current-password"></div><div class="field"><label for="new-password">新密码（至少 10 位）</label><input id="new-password" type="password" minlength="10" maxlength="128" autocomplete="new-password"></div><div class="field"><label for="confirm-new-password">确认新密码</label><input id="confirm-new-password" type="password" autocomplete="new-password"></div></div><button id="change-password">修改密码并退出其他会话</button><button id="revoke-sessions" class="danger">退出所有设备</button><p class="muted">修改密码或退出所有设备后，需要重新登录。</p></section>
       <section class="card"><h2>我的设备</h2><p class="muted">生成 10 分钟有效的一次性配对码，交给 Peerlink Skill 绑定这台电脑。</p><button id="pair-device">生成设备配对码</button><div id="pairing-code" class="status" hidden></div><div id="devices"></div></section>
       <section class="card"><h2>云端项目目录</h2><p class="muted">管理员可在冷启动时直接创建项目；成员新增项目需管理员批准。本地路径由每位成员在自己电脑上通过 Codex 绑定。</p><div class="grid"><div class="field"><label for="catalog-id">项目标识</label><input id="catalog-id" pattern="[a-zA-Z0-9_-]+" placeholder="peerlink"></div><div class="field"><label for="catalog-description">项目说明</label><input id="catalog-description" maxlength="1000"></div></div><button id="catalog-submit">新增项目</button><div id="catalog-projects"></div></section>
       <section class="card"><h2>向项目 Agent 提问</h2><div class="grid"><div class="field"><label>项目成员</label><select id="peer"></select></div><div class="field"><label>项目</label><select id="project"></select></div></div><div class="field"><label>问题</label><textarea id="question" placeholder="请描述你想了解的项目问题"></textarea></div><button id="ask">发送请求</button></section>
@@ -19,4 +20,4 @@
     </div>
   </main>
 </div>
-<script src="/app.js?v=20260922-catalog1" defer></script></html>
+<script src="/app.js?v=20260923-account1" defer></script></html>

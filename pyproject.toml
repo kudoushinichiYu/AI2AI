@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "peerlink"
-version = "0.2.1"
+dynamic = ["version"]
 description = "Human-approved project agent collaboration MVP"
 requires-python = ">=3.10"
 dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "httpx>=0.27,<1"]
@@ -20,6 +20,9 @@ peerlink = ["static/*", "bundled_skill/*", "bundled_skill/agents/*"]
 
 [tool.setuptools.packages.find]
 include = ["peerlink*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "peerlink.__version__"}
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -11,7 +11,7 @@ Peerlink lets teammates ask questions of each other's project agents without han
 
 Deploy one Hub on a lab server, an internal host, or a cloud VM. Members connect their own machines and explicitly register the projects they want to make available for collaboration.
 
-> **Developer preview · v0.2.1.** Start with a small, trusted group. The Mock workflow has automated end-to-end coverage; real Codex execution and container deployment still require validation on the target machines. Peerlink is not yet production-hardened.
+> **Developer preview.** Start with a small, trusted group. The Mock workflow has automated end-to-end coverage; real Codex execution and container deployment still require validation on the target machines. Peerlink is not yet production-hardened.
 
 ## Why Peerlink?
 

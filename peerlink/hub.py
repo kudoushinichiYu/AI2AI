@@ -8,13 +8,32 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal, Optional
 
-from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Response
+from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+
+from peerlink import __version__
 
 
 def digest(token):
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def audit_as(conn, request_id, actor, action):
+    conn.execute("INSERT INTO audit(request,actor,event,created) VALUES (?,?,?,?)",
+                 (request_id, actor, action, time.time()))
+
+
+def cancel_requests(conn, where, params, actor, action):
+    rows = conn.execute("SELECT id FROM requests WHERE (" + where + ")" +
+                        " AND status NOT IN ('COMPLETED','FAILED','REJECTED','CANCELLED')", params).fetchall()
+    if not rows:
+        return 0
+    conn.execute("UPDATE requests SET status='CANCELLED' WHERE (" + where + ")" +
+                 " AND status NOT IN ('COMPLETED','FAILED','REJECTED','CANCELLED')", params)
+    for row in rows:
+        audit_as(conn, row["id"], actor, action)
+    return len(rows)
 
 
 def password_hash(password):
@@ -133,8 +152,9 @@ class Store:
         with self.connect() as conn:
             if not conn.execute("SELECT 1 FROM users WHERE id=?", (name,)).fetchone():
                 raise KeyError(name)
-            conn.execute("UPDATE users SET password_hash=?,credential_kind='PASSWORD' WHERE id=?",
-                         (password_hash(password), name))
+            conn.execute("UPDATE users SET password_hash=?,credential_kind='PASSWORD',token=? WHERE id=?",
+                         (password_hash(password), digest(secrets.token_urlsafe(32)), name))
+            conn.execute("DELETE FROM sessions WHERE owner=?", (name,))
 
     def create_admin(self, name):
         token = secrets.token_urlsafe(32)
@@ -171,6 +191,35 @@ class Store:
                 raise ValueError("用户不在待审批状态")
             conn.execute("DELETE FROM users WHERE id=?", (name,))
 
+    def disable_user(self, name, actor):
+        with self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute("SELECT status,is_admin FROM users WHERE id=?", (name,)).fetchone()
+            if not row:
+                raise KeyError("User not found")
+            if row["status"] != "ACTIVE":
+                raise ValueError("User is not active")
+            if row["is_admin"]:
+                admins = conn.execute("SELECT COUNT(*) FROM users WHERE is_admin=1 AND status='ACTIVE'").fetchone()[0]
+                if admins <= 1:
+                    raise ValueError("Cannot disable the last active administrator")
+            cancel_requests(conn, "sender=? OR receiver=?", (name, name), actor, "user_disabled")
+            conn.execute("DELETE FROM sessions WHERE owner=?", (name,))
+            conn.execute("DELETE FROM pairing_codes WHERE owner=?", (name,))
+            conn.execute("DELETE FROM projects WHERE owner=?", (name,))
+            conn.execute("DELETE FROM devices WHERE owner=?", (name,))
+            conn.execute("UPDATE users SET status='DISABLED',token=? WHERE id=?",
+                         (digest(secrets.token_urlsafe(32)), name))
+
+    def enable_user(self, name):
+        with self.connect() as conn:
+            row = conn.execute("SELECT status FROM users WHERE id=?", (name,)).fetchone()
+            if not row:
+                raise KeyError("User not found")
+            if row["status"] != "DISABLED":
+                raise ValueError("User is not disabled")
+            conn.execute("UPDATE users SET status='ACTIVE' WHERE id=?", (name,))
+
 
 class DeviceInput(BaseModel):
     name: str = Field(min_length=1, max_length=100)
@@ -193,7 +242,7 @@ class CatalogProjectInput(BaseModel):
 
 
 class CatalogDecisionInput(BaseModel):
-    action: Literal["approve", "reject"]
+    action: Literal["approve", "reject", "retire", "activate"]
 
 
 class QuestionInput(BaseModel):
@@ -213,7 +262,11 @@ class LoginInput(RegistrationInput):
     pass
 
 class UserDecisionInput(BaseModel):
-    action: Literal["approve", "reject"]
+    action: Literal["approve", "reject", "disable", "enable"]
+
+class PasswordChangeInput(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=10, max_length=128)
 
 class LeaseInput(BaseModel):
     lease: str = Field(min_length=1, max_length=200)
@@ -226,7 +279,7 @@ class ResultInput(LeaseInput):
 
 def create_app(db_path=None):
     store = Store(db_path or os.environ.get("PEERLINK_DB", ".peerlink/hub.db"))
-    app = FastAPI(title="Peerlink Collaboration", version="0.2.1")
+    app = FastAPI(title="Peerlink Collaboration", version=__version__)
     app.state.store = store
 
     def actor(authorization: str = Header(default=""), peerlink_session: str = Cookie(default="")):
@@ -243,7 +296,8 @@ def create_app(db_path=None):
                                    "AND credential_kind='LOGIN'", (token,)).fetchone()
                 if row:
                     return {"kind": "user", "owner": row["id"], "id": row["id"]}
-                row = conn.execute("SELECT id,owner FROM devices WHERE token=?", (token,)).fetchone()
+                row = conn.execute("SELECT d.id,d.owner FROM devices d JOIN users u ON u.id=d.owner "
+                                   "WHERE d.token=? AND u.status='ACTIVE'", (token,)).fetchone()
                 if row:
                     return {"kind": "device", "owner": row["owner"], "id": row["id"]}
         raise HTTPException(401, "凭证无效")
@@ -268,13 +322,17 @@ def create_app(db_path=None):
         return current
 
     def event(conn, request_id, current, action):
-        conn.execute("INSERT INTO audit(request,actor,event,created) VALUES (?,?,?,?)",
-                     (request_id, current["id"], action, time.time()))
+        audit_as(conn, request_id, current["id"], action)
 
     def expire(conn):
+        now = time.time()
+        rows = conn.execute("SELECT id FROM requests WHERE status IN ('RUNNING','WAITING_OUTPUT_APPROVAL') "
+                            "AND expires < ?", (now,)).fetchall()
         conn.execute("UPDATE requests SET status='FAILED', error='设备执行租约超时；请重新发起请求' "
                      "WHERE status IN ('RUNNING','WAITING_OUTPUT_APPROVAL') AND expires < ?",
-                     (time.time(),))
+                     (now,))
+        for row in rows:
+            audit_as(conn, row["id"], "system", "lease_expired")
 
     def load(conn, request_id):
         row = conn.execute("SELECT * FROM requests WHERE id=?", (request_id,)).fetchone()
@@ -298,14 +356,15 @@ def create_app(db_path=None):
     def javascript():
         return FileResponse(Path(__file__).parent / "static/app.js")
 
-    @app.get("/downloads/peerlink-0.2.1-py3-none-any.whl", include_in_schema=False)
+    @app.get("/downloads/peerlink.whl", include_in_schema=False)
+    @app.get(f"/downloads/peerlink-{__version__}-py3-none-any.whl", include_in_schema=False)
     def client_package():
-        default = Path(store.path).resolve().parent.parent / "downloads" / "peerlink-0.2.1-py3-none-any.whl"
+        filename = f"peerlink-{__version__}-py3-none-any.whl"
+        default = Path(store.path).resolve().parent.parent / "downloads" / filename
         package = Path(os.environ.get("PEERLINK_CLIENT_PACKAGE", default))
         if not package.is_file():
             raise HTTPException(404, "客户端安装包尚未发布")
-        return FileResponse(package, media_type="application/zip",
-                            filename="peerlink-0.2.1-py3-none-any.whl")
+        return FileResponse(package, media_type="application/octet-stream", filename=filename)
 
     @app.get("/health")
     def health():
@@ -328,20 +387,40 @@ def create_app(db_path=None):
         return {"username": body.username, "status": "PENDING"}
 
     @app.post("/api/login")
-    def login(body: LoginInput, response: Response):
+    def login(body: LoginInput, request: Request, response: Response):
         with store.connect() as conn:
             row = conn.execute("SELECT status,password_hash FROM users WHERE id=?", (body.username,)).fetchone()
             if not row or not password_matches(body.password, row["password_hash"]):
                 raise HTTPException(401, "用户名或密码错误")
-            if row["status"] != "ACTIVE":
+            if row["status"] == "PENDING":
                 raise HTTPException(403, "账户正在等待管理员审批")
+            if row["status"] != "ACTIVE":
+                raise HTTPException(403, "账户已停用，请联系管理员")
             session = secrets.token_urlsafe(32)
             conn.execute("DELETE FROM sessions WHERE expires<=?", (time.time(),))
             conn.execute("INSERT INTO sessions(token,owner,expires,created) VALUES (?,?,?,?)",
                          (digest(session), body.username, time.time() + 604800, time.time()))
         response.set_cookie("peerlink_session", session, max_age=604800, httponly=True,
-                            secure=True, samesite="lax", path="/")
+                            secure=request.url.scheme == "https", samesite="lax", path="/")
         return {"username": body.username, "ok": True}
+
+    @app.post("/api/account/password")
+    def change_password(body: PasswordChangeInput, response: Response, current=Depends(user)):
+        with store.connect() as conn:
+            row = conn.execute("SELECT password_hash FROM users WHERE id=?", (current["owner"],)).fetchone()
+            if not row or not password_matches(body.current_password, row["password_hash"]):
+                raise HTTPException(401, "当前密码不正确")
+        store.set_password(current["owner"], body.new_password)
+        response.delete_cookie("peerlink_session", path="/")
+        return {"ok": True, "sessions_revoked": True}
+
+    @app.post("/api/sessions/revoke")
+    def revoke_sessions(response: Response, current=Depends(user)):
+        with store.connect() as conn:
+            count = conn.execute("SELECT COUNT(*) FROM sessions WHERE owner=?", (current["owner"],)).fetchone()[0]
+            conn.execute("DELETE FROM sessions WHERE owner=?", (current["owner"],))
+        response.delete_cookie("peerlink_session", path="/")
+        return {"ok": True, "revoked": count}
 
     @app.post("/api/logout")
     def logout(response: Response, peerlink_session: str = Cookie(default="")):
@@ -362,13 +441,20 @@ def create_app(db_path=None):
         try:
             if body.action == "approve":
                 store.approve_user(username)
-            else:
+            elif body.action == "reject":
                 store.reject_user(username)
+            elif body.action == "disable":
+                if username == current["owner"]:
+                    raise ValueError("不能停用当前登录的管理员账号")
+                store.disable_user(username, current["owner"])
+            else:
+                store.enable_user(username)
         except KeyError as error:
             raise HTTPException(404, "用户不存在") from error
         except ValueError as error:
             raise HTTPException(409, str(error)) from error
-        return {"username": username, "status": "ACTIVE" if body.action == "approve" else "REMOVED"}
+        status = {"approve": "ACTIVE", "reject": "REMOVED", "disable": "DISABLED", "enable": "ACTIVE"}[body.action]
+        return {"username": username, "status": status}
 
     @app.get("/api/peers")
     def peers(current=Depends(member)):
@@ -420,9 +506,8 @@ def create_app(db_path=None):
             conn.execute("BEGIN IMMEDIATE")
             conn.execute("DELETE FROM devices WHERE id=? AND owner=?", (device_id, current["owner"]))
             conn.execute("DELETE FROM projects WHERE device=? AND owner=?", (device_id, current["owner"]))
-            conn.execute("UPDATE requests SET status='CANCELLED' WHERE device=? AND receiver=? "
-                         "AND status NOT IN ('COMPLETED','FAILED','REJECTED','CANCELLED')",
-                         (device_id, current["owner"]))
+            cancel_requests(conn, "device=? AND receiver=?", (device_id, current["owner"]),
+                            current["owner"], "device_revoked")
         return {"ok": True}
 
     @app.get("/api/catalog/projects")
@@ -439,10 +524,10 @@ def create_app(db_path=None):
             return [dict(row) for row in rows]
 
     @app.post("/api/catalog/projects")
-    def add_catalog_project(body: CatalogProjectInput, current=Depends(user)):
+    def add_catalog_project(body: CatalogProjectInput, current=Depends(member)):
         with store.connect() as conn:
             role = conn.execute("SELECT is_admin FROM users WHERE id=?", (current["owner"],)).fetchone()
-            status = "ACTIVE" if role and role[0] else "PENDING"
+            status = "ACTIVE" if current["kind"] == "user" and role and role[0] else "PENDING"
             try:
                 conn.execute("INSERT INTO project_catalog VALUES (?,?,?,?,?)",
                              (body.id, body.description, status, current["owner"], time.time()))
@@ -457,14 +542,22 @@ def create_app(db_path=None):
             row = conn.execute("SELECT status FROM project_catalog WHERE id=?", (project_id,)).fetchone()
             if not row:
                 raise HTTPException(404, "项目不存在")
-            if row["status"] != "PENDING":
-                raise HTTPException(409, "项目不在待审批状态")
-            if body.action == "approve":
+            if row["status"] == "PENDING" and body.action in ("approve", "reject"):
+                if body.action == "approve":
+                    conn.execute("UPDATE project_catalog SET status='ACTIVE' WHERE id=?", (project_id,))
+                    status = "ACTIVE"
+                else:
+                    conn.execute("DELETE FROM project_catalog WHERE id=?", (project_id,))
+                    status = "REMOVED"
+            elif row["status"] == "ACTIVE" and body.action == "retire":
+                conn.execute("UPDATE project_catalog SET status='RETIRED' WHERE id=?", (project_id,))
+                cancel_requests(conn, "project=?", (project_id,), current["owner"], "project_retired")
+                status = "RETIRED"
+            elif row["status"] == "RETIRED" and body.action == "activate":
                 conn.execute("UPDATE project_catalog SET status='ACTIVE' WHERE id=?", (project_id,))
                 status = "ACTIVE"
             else:
-                conn.execute("DELETE FROM project_catalog WHERE id=?", (project_id,))
-                status = "REMOVED"
+                raise HTTPException(409, "项目当前状态不支持该操作")
         return {"id": project_id, "status": status}
 
     @app.put("/api/projects")
@@ -490,26 +583,27 @@ def create_app(db_path=None):
             conn.execute("BEGIN IMMEDIATE")
             conn.execute("DELETE FROM projects WHERE owner=? AND id=? AND device=?",
                          (current["owner"], project_id, current["id"]))
-            conn.execute("UPDATE requests SET status='CANCELLED' WHERE receiver=? AND project=? "
-                         "AND device=? AND status NOT IN ('COMPLETED','FAILED','REJECTED','CANCELLED')",
-                         (current["owner"], project_id, current["id"]))
+            cancel_requests(conn, "receiver=? AND project=? AND device=?",
+                            (current["owner"], project_id, current["id"]), current["owner"], "project_removed")
         return {"ok": True}
 
     @app.get("/api/projects")
     def projects(owner: str, current=Depends(member)):
-        columns = "id,description,runtime,device"
+        columns = "p.id,p.description,p.runtime,p.device"
         if owner == current["owner"]:
-            columns += ",path"
+            columns += ",p.path"
         with store.connect() as conn:
             return [dict(row) for row in conn.execute(
-                "SELECT " + columns + " FROM projects WHERE owner=?", (owner,))]
+                "SELECT " + columns + " FROM projects p JOIN project_catalog c ON c.id=p.id "
+                "WHERE p.owner=? AND c.status='ACTIVE'", (owner,))]
 
     @app.post("/api/requests")
     def ask(body: QuestionInput, current=Depends(member)):
         request_id = secrets.token_hex(12)
         with store.connect() as conn:
             conn.execute("BEGIN IMMEDIATE")
-            project = conn.execute("SELECT * FROM projects WHERE owner=? AND id=?",
+            project = conn.execute("SELECT p.* FROM projects p JOIN project_catalog c ON c.id=p.id "
+                                   "WHERE p.owner=? AND p.id=? AND c.status='ACTIVE'",
                                    (body.receiver, body.project)).fetchone()
             if not project:
                 raise HTTPException(404, "项目未注册")
@@ -531,10 +625,11 @@ def create_app(db_path=None):
     @app.get("/api/requests/{request_id}")
     def get_request(request_id: str, current=Depends(member)):
         with store.connect() as conn:
-            expire(conn)
             row = dict(load(conn, request_id))
             if current["owner"] not in (row["sender"], row["receiver"]):
                 raise HTTPException(403, "无权查看")
+            expire(conn)
+            row = dict(load(conn, request_id))
             for key in ("lease", "expires", "device"):
                 row.pop(key)
             return row

@@ -1,6 +1,6 @@
 {
   "name": "peerlink",
-  "version": "0.2.1",
+  "version": "0.3.0+codex.20260923",
   "description": "Human-approved collaboration with teammates' local project agents",
   "author": {
     "name": "Peerlink"
@@ -12,7 +12,10 @@
     "longDescription": "Connect Codex to a Peerlink team Hub, bind approved local projects, send questions, and review locally generated drafts before sharing.",
     "developerName": "Peerlink",
     "category": "Productivity",
-    "capabilities": ["Interactive", "Local tools"],
+    "capabilities": [
+      "Interactive",
+      "Local tools"
+    ],
     "defaultPrompt": [
       "Check my Peerlink status and pending requests.",
       "Ask a teammate's project agent a question.",

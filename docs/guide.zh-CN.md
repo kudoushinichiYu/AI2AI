@@ -20,7 +20,7 @@ Compose 项目名也统一为 `peerlink`。已有 Compose 部署升级时，应�
 
 - 云端 API + 中文 Web 页面：联系人、注册项目查询、提问、批准/拒绝、取消和查看结果。
 - 本地 Connector：注册设备和项目路径、轮询领取已批准请求、租约续期、本地草稿、人工确认发送。
-- 用户 Token 和设备 Token 分离；设备无权批准请求或查询别人的请求。
+- 用户名密码登录与设备凭证分离；设备无权批准请求或查询别人的请求。
 - 本地 CLI 和可复制安装的 Skill；无需第一版就实现 MCP，Agent 可通过 CLI 提问及查结果。
 - **Mock Runtime 已提供端到端测试，不读取项目、不调用模型；Codex Docker 适配器需在安装 Docker、配置专用认证后单独验证。**
 
@@ -50,7 +50,7 @@ docker compose exec hub peerlink init-admin <管理员用户名>
 - 向成员提供 **Hub 地址，以及项目源码或安装包的获取方式**。当前尚无公开发布的一键安装器。
 - 成员在浏览器使用 ERP 用户名和密码注册。管理员批准后即可登录，再从“我的设备”生成一次性配对码。
 
-Token 是长期有效的 MVP 凭证，不要提交 Git、截图或粘贴到聊天。页面只在内存保存 Token，刷新后需重新输入。
+登录会话由 HTTP-only Cookie 维持；可在“账号安全”中修改密码或撤销所有登录会话。
 
 ### 本机体验（可选）
 
@@ -73,7 +73,7 @@ peerlink hub
 本地 Connector 面向 macOS / Linux，需要 Python 3.10+。可从 Hub 下载已发布客户端：
 
 ```bash
-python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.2.1-py3-none-any.whl
+python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink.whl
 peerlink skill-install
 ```
 
@@ -96,6 +96,8 @@ peerlink service-install
 ```
 
 管理员在网页冷启动项目目录；每位成员的 Codex 读取 `catalog` 后，对本人明确确认的项目上传“项目标识→本地绝对路径”绑定，不上传仓库内容。本机不存在的项目可跳过。新项目先用 `peerlink project-propose <id> '<说明>'` 申请，批准前无法绑定。
+
+配对后的设备凭证也可以执行 `project-propose`，申请会进入 `PENDING` 等待管理员审批。管理员可将 `ACTIVE` 项目退役，也可重新启用；退役后该项目不再出现在可发现项目中，未完成请求会被取消并写入审计记录。
 
 状态默认位于 `~/.peerlink`。配对后只保存可单独撤销的设备凭证，不保存账号密码。该设备凭证可用于提问和查收回复，但不能代替用户审批请求。
 

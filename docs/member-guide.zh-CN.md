@@ -18,7 +18,7 @@
 需要 Python 3.10+ 的 macOS 或 Linux。
 
 ```bash
-python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.2.1-py3-none-any.whl
+python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink.whl
 codex plugin marketplace add kudoushinichiYu/peerlink --ref main
 codex plugin add peerlink@peerlink-team
 ```
@@ -31,7 +31,7 @@ peerlink status
 codex plugin list
 ```
 
-`status` 在未配对时会提示没有本地配置，这是正常状态。
+`status` 在未配对时会返回 `paired: false`，这是正常状态。
 
 ## 3. 配对这台电脑
 
@@ -138,5 +138,6 @@ Codex 不能替你批准请求，也不能把未经阅读的草稿自动发送�
 - **项目无法绑定**：先确认 `peerlink catalog` 中项目为 `ACTIVE`。
 - **请求一直等待**：接收方尚未批准，或其 Connector 没有在线。
 - **设备凭证失效**：在网页重新配对，不要恢复旧 Token。
+- **修改密码或撤销会话后退出**：重新用当前密码登录。
 
 更详细的 Docker Runtime、运维和安全边界见[完整指南](guide.zh-CN.md)。

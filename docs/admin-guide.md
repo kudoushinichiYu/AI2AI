@@ -12,6 +12,8 @@ This handbook covers Hub initialization, account approval, the governed project 
 4. Review member-proposed catalog entries. Check for duplicate IDs and clear descriptions. Members cannot bind a local path until the proposal is approved.
 5. Ask members to pair their own devices and explicitly map active catalog projects to local directories. Cloud metadata contains the mapping, not repository contents; other members do not receive the private path.
 6. Revoke unused devices. Revocation removes that device's bindings and cancels its unfinished work.
+7. Disable a departing or compromised member from **User management**. This revokes their sessions, devices, and bindings and cancels unfinished requests; re-enabling the account requires the member to pair again. The last active administrator cannot be disabled.
+8. Retire a project that should no longer accept requests. Its unfinished requests are cancelled and audited; the project can be reactivated later.
 
 Project owners, including administrators, must personally approve incoming execution and explicitly confirm any answer before it is shared. Administrator status does not authorize overriding another owner's approval.
 

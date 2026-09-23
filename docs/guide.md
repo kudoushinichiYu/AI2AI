@@ -17,11 +17,11 @@ docker compose up -d --build
 docker compose exec hub peerlink init-admin <administrator-username>
 ```
 
-Replace `<administrator-username>` with an actual username before running the command; do not keep the angle brackets. Usernames accept letters, digits, underscores, and hyphens, up to 80 characters. `init-admin` prints the administrator Token once. Deliver it privately; never commit it or include it in screenshots or reports. When starting from an older database, the earliest existing account is upgraded to administrator automatically.
+Replace `<administrator-username>` with an actual username before running the command; do not keep the angle brackets. Usernames accept letters, digits, dots, underscores, and hyphens, up to 80 characters. `init-admin` securely prompts for a password twice; the administrator signs in with that username and password. When starting from an older database, the earliest existing account is upgraded to administrator automatically.
 
 Compose binds port 8000 to the server's loopback interface only. Configure an HTTPS reverse proxy using the [Caddy example](../deploy/Caddyfile.example) or your own Nginx configuration. Use a certificate trusted by member devices; remote clients do not accept plain HTTP or offer an option to disable TLS verification. Start on a private network or VPN rather than exposing the preview to the public internet.
 
-Give members the Hub's HTTPS URL and access to this repository or a package built from it. Members register on the web page, save the pending Token displayed once, and sign in after an administrator approves them. The current web interface is in Chinese. Tokens are kept only in page memory, so reloading requires signing in again. `/docs` exposes API documentation and `/health` provides a health check.
+Give members the Hub's HTTPS URL and access to this repository or a package built from it. Members register with their own username and password, then sign in after an administrator approves the account. The current web interface is in Chinese. The login session is held in an HTTP-only cookie; users can change their password or revoke all sessions from **Account security**. `/docs` exposes API documentation and `/health` provides a health check.
 
 A 4-vCPU / 8-GB host is a reasonable starting point for a trial group of fewer than 10 members, not a benchmarked capacity claim. Each member supplies their local execution resources and model access; the Hub does not perform model inference.
 
@@ -46,7 +46,7 @@ Open [localhost:8000](http://127.0.0.1:8000). To simulate additional members, re
 The local Connector targets macOS and Linux with Python 3.10+. Install the published client and its bundled Codex Skill:
 
 ```bash
-python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.2.1-py3-none-any.whl
+python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink.whl
 peerlink skill-install
 ```
 
@@ -69,6 +69,8 @@ peerlink service-install
 ```
 
 Administrators seed the cloud catalog. Each member's Codex reads `catalog` and uploads only explicitly confirmed project-to-local-path bindings, not repository contents; missing projects may be skipped. Members use `peerlink project-propose <id> '<description>'` for new entries and cannot bind them before administrator approval. See [real Codex execution](#5-real-codex-execution-experimental) for the experimental adapter.
+
+The proposal command also works with a paired device credential; it creates a `PENDING` catalog entry for administrator review. Administrators can retire an active entry and reactivate it later. Retiring hides its project bindings from discovery and cancels unfinished requests for that project.
 
 State defaults to `~/.peerlink`. Override it with `PEERLINK_STATE` or `peerlink --state /path/to/state ...`. Newly created state directories use mode 700 and configuration files use mode 600. The device credential can send questions and retrieve replies for its owner, but cannot approve incoming execution.
 

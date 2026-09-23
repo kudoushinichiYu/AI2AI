@@ -10,7 +10,7 @@ This handbook covers registration, Codex plugin installation, device pairing, lo
 2. Install the lightweight client and Codex plugin:
 
    ```bash
-   python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.2.1-py3-none-any.whl
+   python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink.whl
    codex plugin marketplace add kudoushinichiYu/peerlink --ref main
    codex plugin add peerlink@peerlink-team
    ```
@@ -72,3 +72,4 @@ Mock is a connectivity demonstration. Real project execution uses the experiment
 - Project cannot bind: confirm it is `ACTIVE` in `peerlink catalog`.
 - Request remains waiting: the owner has not approved it or their Connector is offline.
 - Device credential revoked: pair the device again; do not restore an old token.
+- Password changed or sessions revoked: sign in again with the current password.

@@ -1,3 +1,6 @@
+import json
+import subprocess
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -5,6 +8,7 @@ import pytest
 
 from fastapi.testclient import TestClient
 
+from peerlink import __version__
 from peerlink.hub import create_app, digest
 
 
@@ -14,6 +18,19 @@ def test_public_page_redirects_http_domain_to_https(tmp_path):
     assert page.status_code == 200
     assert 'location.protocol==="http:"' in page.text
     assert 'https://peerlink.jd.com' in page.text
+
+
+def test_client_wheel_has_a_stable_download_url(tmp_path, monkeypatch):
+    package = tmp_path / f"peerlink-{__version__}-py3-none-any.whl"
+    package.write_bytes(b"test wheel")
+    monkeypatch.setenv("PEERLINK_CLIENT_PACKAGE", str(package))
+    client = TestClient(create_app(tmp_path / "hub.db"))
+
+    response = client.get("/downloads/peerlink.whl")
+
+    assert response.status_code == 200
+    assert response.content == b"test wheel"
+    assert f"peerlink-{__version__}-py3-none-any.whl" in response.headers["content-disposition"]
 
 
 @pytest.fixture
@@ -68,6 +85,32 @@ def test_password_admin_can_log_in(tmp_path):
     client = TestClient(app, base_url="https://testserver")
     assert client.post("/api/login", json={
         "username": "owner.1", "password": "a-secure-password"}).status_code == 200
+
+
+def test_local_http_login_cookie_authenticates_following_requests(tmp_path):
+    app = create_app(tmp_path / "hub.db")
+    app.state.store.create_admin_password("owner", "a-secure-password")
+    client = TestClient(app, base_url="http://127.0.0.1")
+
+    login = client.post("/api/login", json={
+        "username": "owner", "password": "a-secure-password"})
+
+    assert login.status_code == 200
+    assert "secure" not in login.headers["set-cookie"].lower()
+    assert client.get("/api/me").json() == {
+        "kind": "user", "owner": "owner", "id": "owner", "is_admin": True}
+
+
+def test_unpaired_status_is_a_normal_json_state(tmp_path):
+    result = subprocess.run(
+        [sys.executable, "-m", "peerlink.cli", "--state", str(tmp_path / "not-paired"), "status"],
+        capture_output=True, text=True, check=False,
+    )
+
+    assert result.returncode == 0
+    assert json.loads(result.stdout) == {
+        "paired": False, "owner": None, "device": None, "hub": None, "projects": []}
+    assert "Traceback" not in result.stderr
 
 
 def test_rejected_registration_is_removed(tmp_path):
@@ -130,6 +173,19 @@ def test_admin_seeds_catalog_and_member_proposal_requires_approval(tmp_path):
     assert {row["id"]: row["status"] for row in rows} == {"core": "ACTIVE", "new-tool": "PENDING"}
     assert admin.post("/api/admin/catalog/projects/new-tool/decision",
                       json={"action": "approve"}).json()["status"] == "ACTIVE"
+
+
+def test_paired_device_can_propose_catalog_project_for_admin_approval(setup):
+    app, client, headers, device = setup
+    proposed = client.post("/api/catalog/projects", headers=headers["device"], json={
+        "id": "device-proposal", "description": "Proposed from the paired connector"})
+
+    assert proposed.status_code == 200
+    assert proposed.json()["status"] == "PENDING"
+    approved = client.post("/api/admin/catalog/projects/device-proposal/decision",
+                           headers=headers["alex"], json={"action": "approve"})
+    assert approved.status_code == 200
+    assert approved.json()["status"] == "ACTIVE"
 
 
 def test_device_can_only_bind_active_catalog_project(tmp_path):
@@ -227,6 +283,147 @@ def test_private_paths_and_requests(setup):
     assert client.get(f"/api/requests/{request_id}", headers=headers["carol"]).status_code == 403
     assert client.get("/api/requests").status_code == 401
     assert client.get("/api/requests", headers=headers["device"]).status_code == 200
+
+
+def test_forbidden_request_read_does_not_expire_other_users_lease(setup):
+    task = claimed(setup)
+    app, client, headers, device = setup
+    with app.state.store.connect() as conn:
+        conn.execute("UPDATE requests SET expires=? WHERE id=?", (time.time() - 1, task["id"]))
+
+    assert client.get("/api/requests/not-a-request", headers=headers["carol"]).status_code == 404
+    assert client.get(f"/api/requests/{task['id']}", headers=headers["carol"]).status_code == 403
+    with app.state.store.connect() as conn:
+        status = conn.execute("SELECT status FROM requests WHERE id=?", (task["id"],)).fetchone()[0]
+        assert status == "RUNNING"
+
+    visible = client.get(f"/api/requests/{task['id']}", headers=headers["bob"])
+    assert visible.status_code == 200
+    assert visible.json()["status"] == "FAILED"
+    with app.state.store.connect() as conn:
+        event = conn.execute("SELECT actor,event FROM audit WHERE request=? ORDER BY id DESC LIMIT 1",
+                             (task["id"],)).fetchone()
+    assert tuple(event) == ("system", "lease_expired")
+
+
+def test_device_auth_rejects_disabled_owner(setup):
+    app, client, headers, device = setup
+    with app.state.store.connect() as conn:
+        conn.execute("UPDATE users SET status='DISABLED' WHERE id='bob'")
+
+    assert client.get("/api/peers", headers=headers["device"]).status_code == 401
+
+
+def test_password_change_and_session_revoke_invalidate_all_sessions(tmp_path):
+    app = create_app(tmp_path / "hub.db")
+    app.state.store.create_admin_password("owner", "a-secure-password")
+    first = TestClient(app, base_url="https://testserver")
+    second = TestClient(app, base_url="https://testserver")
+    credentials = {"username": "owner", "password": "a-secure-password"}
+    assert first.post("/api/login", json=credentials).status_code == 200
+    assert second.post("/api/login", json=credentials).status_code == 200
+
+    changed = first.post("/api/account/password", json={
+        "current_password": "a-secure-password", "new_password": "another-secure-password"})
+    assert changed.status_code == 200
+    assert first.get("/api/me").status_code == 401
+    assert second.get("/api/me").status_code == 401
+    assert first.post("/api/login", json={
+        "username": "owner", "password": "another-secure-password"}).status_code == 200
+
+    revoked = first.post("/api/sessions/revoke")
+    assert revoked.status_code == 200
+    assert revoked.json()["revoked"] == 1
+    assert first.get("/api/me").status_code == 401
+
+
+def test_cannot_disable_last_active_administrator(tmp_path):
+    app = create_app(tmp_path / "hub.db")
+    app.state.store.create_admin_password("owner", "a-secure-password")
+    client = TestClient(app, base_url="https://testserver")
+    assert client.post("/api/login", json={
+        "username": "owner", "password": "a-secure-password"}).status_code == 200
+
+    response = client.post("/api/admin/users/owner/decision", json={"action": "disable"})
+
+    assert response.status_code == 409
+    assert client.get("/api/me").status_code == 200
+
+
+def test_catalog_project_can_be_retired_and_reactivated_with_audit(setup):
+    app, client, headers, device = setup
+    request_id = question(client, headers)
+    assert client.post(f"/api/requests/{request_id}/decision", headers=headers["bob"],
+                       json={"action": "approve"}).status_code == 200
+
+    retired = client.post("/api/admin/catalog/projects/recommendation/decision",
+                          headers=headers["alex"], json={"action": "retire"})
+    assert retired.status_code == 200
+    assert retired.json()["status"] == "RETIRED"
+    assert client.get("/api/projects?owner=bob", headers=headers["alex"]).json() == []
+    assert client.post("/api/requests", headers=headers["alex"], json={
+        "receiver": "bob", "project": "recommendation", "question": "unavailable"}).status_code == 404
+    with app.state.store.connect() as conn:
+        row = conn.execute("SELECT status FROM requests WHERE id=?", (request_id,)).fetchone()
+        audit = conn.execute("SELECT actor,event FROM audit WHERE request=? ORDER BY id DESC LIMIT 1",
+                             (request_id,)).fetchone()
+    assert row["status"] == "CANCELLED"
+    assert tuple(audit) == ("alex", "project_retired")
+
+    active = client.post("/api/admin/catalog/projects/recommendation/decision",
+                         headers=headers["alex"], json={"action": "activate"})
+    assert active.status_code == 200
+    assert active.json()["status"] == "ACTIVE"
+    assert len(client.get("/api/projects?owner=bob", headers=headers["alex"]).json()) == 1
+
+
+def test_device_revocation_bulk_cancel_is_audited(setup):
+    task = claimed(setup)
+    app, client, headers, device = setup
+    assert client.delete("/api/devices/" + device["id"], headers=headers["bob"]).status_code == 200
+    with app.state.store.connect() as conn:
+        event = conn.execute("SELECT actor,event FROM audit WHERE request=? ORDER BY id DESC LIMIT 1",
+                             (task["id"],)).fetchone()
+    assert tuple(event) == ("bob", "device_revoked")
+
+
+def test_project_removal_bulk_cancel_is_audited(setup):
+    task = claimed(setup)
+    app, client, headers, device = setup
+    assert client.delete("/api/projects/recommendation", headers=headers["device"]).status_code == 200
+    with app.state.store.connect() as conn:
+        event = conn.execute("SELECT actor,event FROM audit WHERE request=? ORDER BY id DESC LIMIT 1",
+                             (task["id"],)).fetchone()
+    assert tuple(event) == ("bob", "project_removed")
+
+
+def test_disabling_user_revokes_access_and_audits_unfinished_requests(setup):
+    task = claimed(setup)
+    app, client, headers, device = setup
+    with app.state.store.connect() as conn:
+        conn.execute("INSERT INTO requests(id,sender,receiver,project,device,question,status,created) "
+                     "VALUES (?,?,?,?,?,?,?,?)",
+                     ("already-done", "bob", "alex", "recommendation", "irrelevant", "done",
+                      "COMPLETED", time.time()))
+    disabled = client.post("/api/admin/users/bob/decision", headers=headers["alex"],
+                           json={"action": "disable"})
+
+    assert disabled.status_code == 200
+    assert disabled.json()["status"] == "DISABLED"
+    assert client.get("/api/peers", headers=headers["device"]).status_code == 401
+    assert client.get("/api/peers", headers=headers["bob"]).status_code == 401
+    with app.state.store.connect() as conn:
+        row = conn.execute("SELECT status FROM requests WHERE id=?", (task["id"],)).fetchone()
+        completed = conn.execute("SELECT status FROM requests WHERE id='already-done'").fetchone()
+        event = conn.execute("SELECT actor,event FROM audit WHERE request=? ORDER BY id DESC LIMIT 1",
+                             (task["id"],)).fetchone()
+    assert row["status"] == "CANCELLED"
+    assert completed["status"] == "COMPLETED"
+    assert tuple(event) == ("alex", "user_disabled")
+
+    assert client.post("/api/admin/users/bob/decision", headers=headers["alex"],
+                       json={"action": "enable"}).status_code == 200
+    assert client.get("/api/peers", headers=headers["bob"]).status_code == 401
 
 
 def test_device_can_send_and_cancel_but_cannot_approve(setup):
