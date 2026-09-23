@@ -18,6 +18,8 @@ This handbook covers registration, Codex plugin installation, device pairing, lo
 3. Start a new Codex task so the plugin is loaded. In the web page, generate a ten-minute one-time code under **My devices**, then ask Codex to pair Peerlink with that code. Never give Codex your account password.
 4. Ask Codex to initialize local Peerlink projects. It runs `peerlink catalog`, asks you to confirm each concrete path and runtime, and binds only the projects you approve. Missing projects may be skipped. Never bind `/`, the entire home directory, or a credentials directory.
 
+The Peerlink Skill checks client and plugin releases whenever it is used. An installed background Connector also checks periodically and can show desktop notifications. Checks never install updates silently. Existing older installations need a one-time update from the web app before automatic checks are available. After confirming, update the CLI with the command shown by `peerlink update-check`; for the plugin, refresh the marketplace and remove/reinstall Peerlink. The web app also displays current releases and update instructions.
+
 The Hub stores project-to-path metadata, not repository contents. The device credential is stored in `~/.peerlink/connector.json`; never print, upload, or commit it.
 
 ## Propose a new project

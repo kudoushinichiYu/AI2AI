@@ -6,8 +6,11 @@ import re
 import shutil
 from pathlib import Path
 
+import httpx
+
 from peerlink.client import Client
 from peerlink.connector import configured, review, save_json, work
+from peerlink.releases import PUBLIC_HUB, check_releases
 from peerlink.service import install_service, remove_service, service_status
 
 
@@ -59,6 +62,7 @@ def main():
     ask.add_argument("question")
     sub.add_parser("requests")
     sub.add_parser("status")
+    sub.add_parser("update-check")
     install_skill = sub.add_parser("skill-install")
     install_skill.add_argument("--codex-home", default=os.environ.get("CODEX_HOME", str(Path.home() / ".codex")))
     install_skill.add_argument("--force", action="store_true")
@@ -145,6 +149,21 @@ def main():
         print(json.dumps({"paired": True, "owner": config["owner"], "device": config["id"],
                           "hub": config["hub"], "projects": list(config.get("projects", {}))},
                          ensure_ascii=False, indent=2))
+        return
+    if args.command == "update-check":
+        config_path = state / "connector.json"
+        try:
+            hub = (
+                json.loads(config_path.read_text())["hub"] if config_path.is_file()
+                else os.environ.get("PEERLINK_HUB", PUBLIC_HUB)
+            )
+            result = check_releases(hub)
+        except (httpx.HTTPError, OSError, KeyError, ValueError):
+            result = {
+                "checked": False,
+                "message": "暂时无法连接 Peerlink 版本服务；本地协作功能不受影响，请稍后重试。",
+            }
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return
     config, client = configured(state)
     if args.command == "catalog":

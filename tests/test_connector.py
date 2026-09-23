@@ -9,8 +9,9 @@ import httpx
 import pytest
 
 from peerlink.client import Client
-from peerlink.connector import notify_request_changes, run_runtime, save_json, validate_project
+from peerlink.connector import notify_release_changes, notify_request_changes, run_runtime, save_json, validate_project
 from peerlink.hub import Store
+from peerlink.releases import check_releases
 
 
 @pytest.mark.parametrize("url", ["http://example.com", "ftp://localhost", "https://secret@example.com", "https://example.com?token=secret"])
@@ -86,6 +87,64 @@ def test_request_notifications_are_deduplicated(tmp_path, monkeypatch):
     assert (tmp_path / "notifications.json").stat().st_mode & 0o777 == 0o600
 
 
+def test_release_notifications_are_deduplicated_and_never_update_automatically(tmp_path, monkeypatch):
+    from peerlink import __version__
+    from peerlink.releases import PLUGIN_VERSION
+
+    class FakeClient:
+        def call(self, method, path, **kwargs):
+            assert (method, path) == ("GET", "/api/releases")
+            return {
+                "cli_version": "9.0.0",
+                "plugin_version": "9.0.0+codex.20990101",
+                "plugin_marketplace": "peerlink-team",
+            }
+
+    messages = []
+    monkeypatch.setattr("peerlink.connector.notify", lambda title, message: messages.append((title, message)))
+    notify_release_changes(tmp_path, FakeClient())
+    notify_release_changes(tmp_path, FakeClient())
+
+    assert len(messages) == 1
+    assert "9.0.0" in messages[0][1]
+    assert "确认" in messages[0][1]
+    assert (tmp_path / "update-notifications.json").stat().st_mode & 0o777 == 0o600
+    assert __version__ != "9.0.0"
+    assert PLUGIN_VERSION != "9.0.0+codex.20990101"
+
+
+def test_update_check_detects_newer_cli_and_plugin_with_fixed_marketplace(monkeypatch):
+    class FakeHttp:
+        def close(self):
+            pass
+
+    class FakeClient:
+        def __init__(self, hub):
+            assert hub == "https://peerlink.jd.com"
+            self.http = FakeHttp()
+
+        def call(self, method, path, **kwargs):
+            assert (method, path) == ("GET", "/api/releases")
+            return {
+                "cli_version": "0.5.0",
+                "plugin_version": "0.5.0+codex.20260924",
+                "plugin_marketplace": "peerlink-team",
+            }
+
+    monkeypatch.setattr("peerlink.releases.Client", FakeClient)
+
+    result = check_releases("https://peerlink.jd.com", "0.4.0", "0.4.0+codex.20260923")
+
+    assert result["cli"]["update_available"] is True
+    assert result["plugin"]["update_available"] is True
+    assert result["cli"]["install_command"].endswith("https://peerlink.jd.com/downloads/peerlink.whl")
+    assert result["plugin"]["refresh_command"] == "codex plugin marketplace upgrade peerlink-team"
+    assert result["plugin"]["reinstall_commands"] == [
+        "codex plugin remove peerlink@peerlink-team",
+        "codex plugin add peerlink@peerlink-team",
+    ]
+
+
 def test_real_http_cli_connector_roundtrip(tmp_path):
     import sys
     database = tmp_path / "hub.db"
@@ -117,6 +176,11 @@ def test_real_http_cli_connector_roundtrip(tmp_path):
             pytest.fail("Hub 未启动")
         pairing = Client(hub, bob).call("POST", "/api/pairing-codes")
         cli("connect", "--name", "bob-test", "--hub", hub, "--code", pairing["code"])
+        update_check = json.loads(cli("update-check"))
+        assert update_check["checked"] is True
+        from peerlink import __version__
+        assert update_check["cli"]["latest"] == __version__
+        assert update_check["cli"]["update_available"] is False
         project = tmp_path / "project"
         project.mkdir()
         cli("project-add", "demo", str(project))

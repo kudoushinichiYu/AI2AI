@@ -9,7 +9,9 @@ from pathlib import Path
 
 import httpx
 
+from peerlink import __version__
 from peerlink.client import Client
+from peerlink.releases import PLUGIN_MARKETPLACE, PLUGIN_VERSION, version_key
 from peerlink.service import notify
 
 
@@ -141,6 +143,43 @@ def notify_request_changes(state, config, client):
         save_json(path, {key: value for key, value in seen.items() if key in active_ids})
 
 
+def notify_release_changes(state, client):
+    """Notify once per published release when it is newer than this client bundle."""
+    try:
+        release = client.call("GET", "/api/releases", timeout=4)
+        cli_latest = release.get("cli_version")
+        plugin_latest = release.get("plugin_version")
+        cli_key, cli_latest_key = version_key(__version__), version_key(cli_latest)
+        plugin_key, plugin_latest_key = version_key(PLUGIN_VERSION), version_key(plugin_latest)
+        if (not cli_key or not cli_latest_key or not plugin_key or not plugin_latest_key
+                or release.get("plugin_marketplace") != PLUGIN_MARKETPLACE):
+            return
+    except (httpx.HTTPError, AttributeError, TypeError, ValueError):
+        return
+
+    outdated = []
+    if cli_latest_key > cli_key:
+        outdated.append(f"CLI {cli_latest}")
+    if plugin_latest_key > plugin_key:
+        outdated.append(f"Codex 插件 {plugin_latest}")
+    if not outdated:
+        return
+
+    stamp = f"{cli_latest}|{plugin_latest}"
+    path = Path(state) / "update-notifications.json"
+    try:
+        seen = read_json(path) if path.exists() else {}
+    except (OSError, ValueError, json.JSONDecodeError):
+        seen = {}
+    if seen.get("release") == stamp:
+        return
+    notify("Peerlink 有新版本", "、".join(outdated) + " 已发布。打开 Peerlink 页面查看更新步骤；升级前请先确认。")
+    try:
+        save_json(path, {"release": stamp})
+    except OSError:
+        pass
+
+
 def work(state, once=False, auth_dir=None):
     state = Path(state)
     config, client = configured(state)
@@ -164,9 +203,14 @@ def work(state, once=False, auth_dir=None):
     stopped = threading.Event()
     keeper = threading.Thread(target=keep_leases, args=(state, client, stopped), daemon=True)
     keeper.start()
+    next_release_check = 0.0
     try:
         while True:
             try:
+                now = time.monotonic()
+                if now >= next_release_check:
+                    notify_release_changes(state, client)
+                    next_release_check = now + 6 * 60 * 60
                 notify_request_changes(state, config, client)
                 task = client.call("POST", "/api/connector/claim")
                 if task:

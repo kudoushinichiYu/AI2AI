@@ -2,6 +2,7 @@ import json
 import subprocess
 import sys
 import time
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -10,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from peerlink import __version__
 from peerlink.hub import create_app, digest
+from peerlink.releases import PLUGIN_VERSION
 
 
 def test_public_page_redirects_http_domain_to_https(tmp_path):
@@ -32,9 +34,25 @@ def test_workspace_explains_new_member_setup_and_account_isolation(tmp_path):
     assert "项目目录与本机路径" in page.text
     assert "网页只生成命令，不上传路径或文件" in page.text
     assert 'id="binding-path"' in page.text
-    assert "/app.js?v=20260923-studio-ui" in page.text
+    assert 'id="release-notice"' in page.text
+    assert "/app.js?v=20260923-update-check" in page.text
     assert 'export PEERLINK_STATE="$HOME/.peerlink-${owner.replace' in script.text
     assert "project-add" in script.text
+
+
+def test_public_release_metadata_matches_packaged_plugin_manifest(tmp_path):
+    client = TestClient(create_app(tmp_path / "hub.db"))
+
+    response = client.get("/api/releases")
+
+    manifest = json.loads((Path(__file__).parents[1] / "plugins/peerlink/.codex-plugin/plugin.json").read_text())
+    assert response.status_code == 200
+    assert response.json() == {
+        "cli_version": __version__,
+        "plugin_version": PLUGIN_VERSION,
+        "plugin_marketplace": "peerlink-team",
+    }
+    assert manifest["version"] == PLUGIN_VERSION
 
 
 def test_client_wheel_has_a_stable_download_url(tmp_path, monkeypatch):

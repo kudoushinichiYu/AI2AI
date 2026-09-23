@@ -385,6 +385,26 @@ async function refreshData() {
   await Promise.all([loadDevices(), loadCatalog(), loadOwnProjects(), loadPeers(), loadRequests(), loadUsers()]);
 }
 
+async function loadReleaseInfo() {
+  try {
+    const release = await api("/api/releases");
+    if (release.plugin_marketplace !== "peerlink-team") throw new Error("不支持的插件源");
+    el("release-cli-version").textContent = release.cli_version;
+    el("release-plugin-version").textContent = release.plugin_version;
+    el("release-notice").hidden = false;
+    const cliCommand = `python3 -m pip install --user --upgrade ${shellQuote(`${location.origin}/downloads/peerlink.whl`)}`;
+    const pluginCommands = [
+      `codex plugin marketplace upgrade ${release.plugin_marketplace}`,
+      "codex plugin remove peerlink@peerlink-team",
+      "codex plugin add peerlink@peerlink-team"
+    ].join("\n");
+    el("copy-cli-update").onclick = () => copyText(cliCommand, "客户端更新命令已复制；运行前请确认。请在本机终端粘贴执行。");
+    el("copy-plugin-update").onclick = () => copyText(pluginCommands, "插件更新步骤已复制；移除和重装前请先确认。");
+  } catch {
+    el("release-notice").hidden = true;
+  }
+}
+
 async function enter() {
   const me = await api("/api/me");
   owner = me.owner;
@@ -398,7 +418,7 @@ async function enter() {
   el("side-role").textContent = isAdmin ? "管理员" : "成员";
   el("nav-admin").hidden = !isAdmin;
   openView("overview");
-  await refreshData();
+  await Promise.all([refreshData(), loadReleaseInfo()]);
 }
 
 async function copyText(text, successMessage) {

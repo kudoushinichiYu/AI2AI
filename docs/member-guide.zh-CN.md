@@ -28,10 +28,13 @@ codex plugin add peerlink@peerlink-team
 ```bash
 peerlink --help
 peerlink status
+peerlink update-check
 codex plugin list
 ```
 
 `status` 在未配对时会返回 `paired: false`，这是正常状态。
+
+Peerlink Skill 每次被调用时会检查客户端和插件版本；如果已安装后台 Connector，也会定期检查并发送桌面通知。检查不会自动安装。首次上线时，旧版客户端需要从网页复制更新命令完成一次升级；之后可由 Codex 提醒。确认更新后，客户端按 `peerlink update-check` 输出的命令升级；插件需刷新 Marketplace，再移除并重新安装 Peerlink 插件。也可以在网页查看当前发布版本和更新命令。
 
 ## 3. 配对这台电脑
 

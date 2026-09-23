@@ -5,7 +5,7 @@ description: Connect Codex to a Peerlink team Hub, send questions to teammates' 
 
 # Peerlink
 
-Use the installed `peerlink` command. Start with `peerlink status`. Never ask for or expose a password, pairing code after use, device token, `connector.json`, or model credential.
+This Skill release is `0.4.0+codex.20260923`. Use the installed `peerlink` command. Start with `peerlink status`, then run `peerlink update-check`. If the CLI reports that `update-check` is an unknown command, it predates update checking: explain that this is a one-time bootstrap and ask before running `python3 -m pip install --user --upgrade https://peerlink.jd.com/downloads/peerlink.whl`. Compare `plugin.latest` to this Skill release too, because the active plugin can lag behind the CLI package. If either component has a newer release, explain the exact suggested commands and ask the user before installing anything. For a CLI update, use the command returned in `cli.install_command`. For a plugin update, run the returned marketplace refresh command, then remove and re-add the Peerlink plugin only after the user confirms. Never install updates silently. If the check is unavailable, continue normal work and do not treat it as a pairing failure. Never ask for or expose a password, pairing code after use, device token, `connector.json`, or model credential.
 
 If the device is not paired, tell the user to sign in to the Peerlink web page and create a one-time pairing code, then run `peerlink connect --hub https://peerlink.jd.com --name <device-name> --code <code>`. Do not repeat the code in the response.
 

@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from peerlink import __version__
+from peerlink.releases import release_metadata
 
 
 def digest(token):
@@ -371,6 +372,10 @@ def create_app(db_path=None):
         with store.connect() as conn:
             conn.execute("SELECT 1")
         return {"ok": True}
+
+    @app.get("/api/releases")
+    def releases():
+        return release_metadata()
 
     @app.get("/api/me")
     def me(current=Depends(user)):
