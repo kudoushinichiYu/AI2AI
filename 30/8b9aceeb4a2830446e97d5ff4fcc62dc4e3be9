@@ -1,0 +1,77 @@
+tests/test_hub.py
+  s_2f75bfd3e049f0::t_a23e94767c6f2e 414,423-426
+  s_2f75bfd3e049f0::t_226ce219baee07 11,23-32
+  s_2f75bfd3e049f0::t_061929ee19d104 294
+  s_2f75bfd3e049f0::t_cecd1cf4dfe599 380,389-390,392
+  s_2f75bfd3e049f0::t_4930e3d7661ee1 33
+  s_2f75bfd3e049f0::t_9630d713ee8174 178-179
+  s_2f75bfd3e049f0::t_5b7b1f0f9c7357 1-3,90-115,180-190,288-293,295-379,381-388,391,393-402,408-413,415-416,418-420,422
+  s_2f75bfd3e049f0::t_0c79849c192364 403-407,417,421
+docs/guide.zh-CN.md
+  s_2f75bfd3e049f0::t_6cf8005c71a716 23,76,100
+  s_2f75bfd3e049f0::t_2a74618bccc1d6 53
+peerlink/static/index.html
+  s_2f75bfd3e049f0::t_df34996ea79b3b 15,23
+  s_2f75bfd3e049f0::t_c67b5ebab87685 14
+docs/member-guide.md
+  s_2f75bfd3e049f0::t_6cf8005c71a716 13,75
+peerlink/__init__.py
+  s_2f75bfd3e049f0::t_746d5098e3f9c3 2-3
+pyproject.toml
+  s_2f75bfd3e049f0::t_746d5098e3f9c3 7,24-25
+peerlink/hub.py
+  s_2f75bfd3e049f0::t_5422cd8fbc3c60 22-27,29-31,33-38
+  s_2f75bfd3e049f0::t_a23e94767c6f2e 211-212,395,397-398
+  s_2f75bfd3e049f0::t_0c79849c192364 28,32
+  s_2f75bfd3e049f0::t_547a6bf7dd8001 390,404,407-424,444,446-451,456-457
+  s_2f75bfd3e049f0::t_e0fecb1660f735 245,265-269,299-300,325,328-330,333-335
+  s_2f75bfd3e049f0::t_15f021621def89 527,530
+  s_2f75bfd3e049f0::t_43c31ac8e787b8 11,155-157,194-210,213-221
+  s_2f75bfd3e049f0::t_746d5098e3f9c3 15,282,359-360,362-363,367
+  s_2f75bfd3e049f0::t_fa2d8df3dd2c75 509-510
+  s_2f75bfd3e049f0::t_9edab86a7364cc 545-556,560,586-587,592,594,597-598,605-606,631-632
+peerlink/static/app.js
+  s_2f75bfd3e049f0::t_df34996ea79b3b 5,7,12
+scripts/build_wheel.sh
+  s_2f75bfd3e049f0::t_53c3c04bb1c13d 10-14
+  s_2f75bfd3e049f0::t_6cf8005c71a716 1-3,18-19
+  s_2f75bfd3e049f0::t_4ffd84f4b91942 4-9,15-17,20
+deploy/existing-container/README.md
+  s_2f75bfd3e049f0::t_53c3c04bb1c13d 22
+  s_2f75bfd3e049f0::t_2a74618bccc1d6 23
+  s_2f75bfd3e049f0::t_c57219a777973e 29
+peerlink/cli.py
+  s_2f75bfd3e049f0::t_96ff2991672077 139-146,149
+README.md
+  s_2f75bfd3e049f0::t_6cf8005c71a716 14
+docs/guide.md
+  s_2f75bfd3e049f0::t_6cf8005c71a716 20,24,49,73
+README.zh-CN.md
+  s_2f75bfd3e049f0::t_6cf8005c71a716 14
+plugins/peerlink/README.md
+  s_2f75bfd3e049f0::t_604ade39441807 5
+docs/member-guide.zh-CN.md
+  s_2f75bfd3e049f0::t_6cf8005c71a716 21,34,141
+plugins/peerlink/.codex-plugin/plugin.json
+  s_2f75bfd3e049f0::t_6d763bed202a33 3,15-18
+docs/admin-guide.md
+  s_2f75bfd3e049f0::t_c67b5ebab87685 15-16
+docs/admin-guide.zh-CN.md
+  s_2f75bfd3e049f0::t_c67b5ebab87685 40,49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "308b9aceeb4a2830446e97d5ff4fcc62dc4e3be9",
+  "prompts": {},
+  "sessions": {
+    "s_2f75bfd3e049f0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c2ff-22f2-7123-a418-c80eee7dba32",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "kudoushinichiYu <2449315540@qq.com>"
+    }
+  }
+}
