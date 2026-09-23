@@ -1,0 +1,24 @@
+peerlink/static/index.html
+  s_2f75bfd3e049f0::t_e96338440db02c 1-63,65-117,119-150,152-154
+  s_2f75bfd3e049f0::t_c33754bae4ef92 118,151
+peerlink/static/app.js
+  s_2f75bfd3e049f0::t_4e9e24be9f1a40 1-552
+tests/test_hub.py
+  s_2f75bfd3e049f0::t_6b75a5f72273f2 23-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "7ac780fdf35fac4ed7d8a6f374ea90a0d55c5e8c",
+  "prompts": {},
+  "sessions": {
+    "s_2f75bfd3e049f0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c2ff-22f2-7123-a418-c80eee7dba32",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "kudoushinichiYu <2449315540@qq.com>"
+    }
+  }
+}
