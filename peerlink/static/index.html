@@ -1,23 +1,154 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>if(location.protocol==="http:"&&location.hostname==="peerlink.jd.com")location.replace("https://peerlink.jd.com"+location.pathname+location.search+location.hash)</script><title>Peerlink · 项目协作</title><style>
-:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;color:#17212b;background:#f5f7fa;line-height:1.5}*{box-sizing:border-box}body{margin:0}.shell{max-width:1120px;margin:auto;padding:40px 24px}.hero{background:linear-gradient(135deg,#092f36,#12665e);color:#fff;border-radius:24px;padding:38px;margin-bottom:24px;box-shadow:0 18px 45px #1233}.hero h1{font-size:38px;margin:0 0 8px}.hero p{margin:0;color:#d9f3ee}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.card,article{background:#fff;border:1px solid #e1e7ec;border-radius:18px;padding:24px;box-shadow:0 8px 24px #14202b0d}.card h2{margin-top:0}.muted,small{color:#667785}.field{margin:14px 0}label{display:block;font-size:14px;font-weight:650;margin-bottom:6px}input,textarea,select{width:100%;font:inherit;border:1px solid #cbd6df;border-radius:10px;padding:12px;background:#fff}textarea{min-height:110px;resize:vertical}button{font:inherit;border:0;border-radius:10px;padding:11px 18px;background:#12665e;color:#fff;font-weight:650;cursor:pointer;margin:8px 8px 0 0}button:hover{background:#0d504a}button.secondary{background:#e9f3f1;color:#125a53}button.danger{background:#a43d3d}.status{padding:12px 14px;border-radius:10px;background:#edf7f5;color:#155d56;margin-top:14px}.error{color:#9b2f2f;min-height:24px}.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}.workspace{display:grid;gap:20px}.request{margin:12px 0}.tag{display:inline-block;color:#12665e;background:#e8f5f2;border-radius:999px;padding:4px 10px;font-size:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}[hidden]{display:none!important}@media(max-width:760px){.grid{grid-template-columns:1fr}.shell{padding:20px 14px}.hero{padding:26px}.hero h1{font-size:30px}}
-</style>
-<div class="shell">
-  <header class="hero"><h1>Peerlink</h1><p>让团队成员安全地向彼此的项目 Agent 提问。云端协调，本地执行，每次访问由你批准。</p></header>
-  <div id="auth" class="grid">
-    <section class="card"><h2>登录</h2><p class="muted">普通成员和管理员使用同一入口。</p><div class="field"><label for="login-name">ERP 账号</label><input id="login-name" autocomplete="username"></div><div class="field"><label for="login-password">密码</label><input id="login-password" type="password" autocomplete="current-password"></div><button id="login-submit">登录</button></section>
-    <section class="card"><h2>申请注册</h2><p class="muted">使用 ERP 账号和密码申请，管理员批准后即可登录。</p><div class="field"><label for="register-name">ERP 账号</label><input id="register-name" autocomplete="username" pattern="[a-zA-Z0-9._-]+" placeholder="yujunjie.50"></div><div class="field"><label for="register-password">密码（至少 10 位）</label><input id="register-password" type="password" minlength="10" maxlength="128" autocomplete="new-password"></div><div class="field"><label for="register-confirm">确认密码</label><input id="register-confirm" type="password" autocomplete="new-password"></div><button id="register-submit">提交注册申请</button><div id="registration-status" class="status" hidden></div></section>
-  </div>
-  <p id="message" class="error" role="alert"></p>
-  <main id="workspace" hidden>
-    <div class="topbar"><div><strong id="identity"></strong><div class="muted">已安全登录</div></div><div><button id="refresh" class="secondary">刷新</button><button id="logout" class="secondary">退出</button></div></div>
-    <div class="workspace">
-      <section id="admin" class="card"><h2>用户管理</h2><p class="muted">审批新注册，或停用与重新启用现有成员账号。</p><div id="users"></div></section>
-      <section class="card"><h2>账号安全</h2><div class="grid"><div class="field"><label for="current-password">当前密码</label><input id="current-password" type="password" autocomplete="current-password"></div><div class="field"><label for="new-password">新密码（至少 10 位）</label><input id="new-password" type="password" minlength="10" maxlength="128" autocomplete="new-password"></div><div class="field"><label for="confirm-new-password">确认新密码</label><input id="confirm-new-password" type="password" autocomplete="new-password"></div></div><button id="change-password">修改密码并退出其他会话</button><button id="revoke-sessions" class="danger">退出所有设备</button><p class="muted">修改密码或退出所有设备后，需要重新登录。</p></section>
-      <section class="card"><h2>我的设备</h2><p class="muted">生成 10 分钟有效的一次性配对码，交给 Peerlink Skill 绑定这台电脑。</p><button id="pair-device">生成设备配对码</button><div id="pairing-code" class="status" hidden></div><div id="devices"></div></section>
-      <section class="card"><h2>云端项目目录</h2><p class="muted">管理员可在冷启动时直接创建项目；成员新增项目需管理员批准。本地路径由每位成员在自己电脑上通过 Codex 绑定。</p><div class="grid"><div class="field"><label for="catalog-id">项目标识</label><input id="catalog-id" pattern="[a-zA-Z0-9_-]+" placeholder="peerlink"></div><div class="field"><label for="catalog-description">项目说明</label><input id="catalog-description" maxlength="1000"></div></div><button id="catalog-submit">新增项目</button><div id="catalog-projects"></div></section>
-      <section class="card"><h2>向项目 Agent 提问</h2><div class="grid"><div class="field"><label>项目成员</label><select id="peer"></select></div><div class="field"><label>项目</label><select id="project"></select></div></div><div class="field"><label>问题</label><textarea id="question" placeholder="请描述你想了解的项目问题"></textarea></div><button id="ask">发送请求</button></section>
-      <section class="card"><h2>我的请求与待审批</h2><p class="muted">答案草稿仅在接收方本地审核，这里只显示确认发送后的内容。</p><div id="requests"></div></section>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#081c24">
+  <script>if(location.protocol==="http:"&&location.hostname==="peerlink.jd.com")location.replace("https://peerlink.jd.com"+location.pathname+location.search+location.hash)</script>
+  <title>Peerlink · 团队项目协作</title>
+  <style>
+    :root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#142b35;background:#edf3f4;line-height:1.55;font-synthesis:none;text-rendering:optimizeLegibility;--ink:#142b35;--muted:#657c84;--line:#dce7e9;--teal:#087f79;--teal-dark:#075a5b;--mint:#a7f3d0;--blue:#6cb9e8;--surface:#fff;--wash:#f5f9f9;--red:#b63e56;--shadow:0 16px 50px #0b29300d}
+    *{box-sizing:border-box}body{margin:0;min-width:320px;background:radial-gradient(ellipse at 80% 0%,#d9eeeb 0,transparent 38%),#edf3f4;color:var(--ink)}button,input,textarea,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #5bd5c480;outline-offset:2px}[hidden]{display:none!important}
+    .brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:.01em}.brand-mark{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;color:#062c31;background:linear-gradient(145deg,#b4ffe1,#52cabd);box-shadow:0 7px 22px #50c7b844;font-size:14px}.brand small{display:block;color:#7c969b;font-size:10px;font-weight:700;letter-spacing:.16em;margin-top:-2px}.eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:800;color:#4b9b91}.muted{color:var(--muted)}.subtle{font-size:13px;color:var(--muted)}
+    .auth-screen{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr);max-width:1440px;margin:auto;padding:34px clamp(18px,5vw,76px);gap:clamp(32px,7vw,112px);align-items:center}.auth-story{position:relative;overflow:hidden;min-height:610px;border-radius:34px;background:linear-gradient(145deg,#081c24 0%,#0c3840 62%,#0c6662 100%);padding:clamp(32px,5vw,66px);color:#f4fffc;box-shadow:0 30px 80px #09232b30;display:flex;flex-direction:column;justify-content:space-between}.auth-story:before,.auth-story:after{content:"";position:absolute;pointer-events:none;border-radius:50%;filter:blur(1px)}.auth-story:before{width:420px;height:420px;right:-140px;top:-70px;border:1px solid #86f4db25;box-shadow:0 0 0 32px #86f4db08,0 0 0 74px #86f4db06,0 0 100px #55d7bc24}.auth-story:after{width:360px;height:360px;right:12%;bottom:-240px;background:#0cc5a51b;filter:blur(30px)}.auth-story>*{position:relative;z-index:1}.auth-story .brand small{color:#8cb9b8}.auth-story .eyebrow{color:#81e6ca;margin-top:76px}.auth-story h1{font-size:clamp(38px,5vw,64px);line-height:1.12;letter-spacing:-.045em;margin:18px 0}.auth-story h1 span{color:#8ce7cf}.auth-story>div>p{max-width:530px;color:#c2d8d7;font-size:16px;margin:0}.value-points{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:42px}.value-point{border:1px solid #d1fff123;background:#ffffff08;border-radius:14px;padding:14px 13px;color:#d9eeee;font-size:12px}.value-point strong{display:block;color:#f5fffc;font-size:13px;margin-bottom:3px}.signal{display:flex;align-items:center;gap:8px;color:#a9d0cc;font-size:12px;margin-top:30px}.signal i{width:7px;height:7px;border-radius:50%;background:#73e9c1;box-shadow:0 0 14px #73e9c1;display:inline-block}
+    .auth-panel{width:100%;max-width:480px;margin:auto}.auth-panel-head{margin-bottom:24px}.auth-panel-head h2{font-size:27px;letter-spacing:-.03em;margin:8px 0 5px}.auth-panel-head p{margin:0}.auth-card{border:1px solid #dce8e8;background:#ffffffed;border-radius:22px;padding:26px;box-shadow:var(--shadow);backdrop-filter:blur(18px)}.auth-tabs{padding:4px;display:grid;grid-template-columns:1fr 1fr;background:#edf3f3;border-radius:12px;margin-bottom:22px}.auth-tab{border:0;background:transparent;border-radius:9px;color:#60777e;padding:10px;font-weight:750}.auth-tab.active{background:#fff;color:#12645e;box-shadow:0 2px 8px #19323b12}.auth-form h3{margin:0 0 4px;font-size:19px}.auth-form>p{margin:0 0 19px;font-size:13px;color:var(--muted)}.field{margin:15px 0}.field label{display:block;font-size:13px;font-weight:750;margin-bottom:7px}.field input,.field select,.field textarea{width:100%;border:1px solid #ccdadd;border-radius:11px;background:#fff;padding:12px 13px;color:var(--ink);transition:border-color .16s,box-shadow .16s}.field input:focus,.field select:focus,.field textarea:focus{border-color:#41afa4;box-shadow:0 0 0 4px #39b7a41a;outline:0}.field input::placeholder,.field textarea::placeholder{color:#9aaeb2}.field textarea{min-height:110px;resize:vertical}.field-hint{font-size:12px;color:#70868c;margin-top:6px}.primary,.secondary,.danger,.ghost{border:0;border-radius:11px;padding:11px 16px;font-weight:750;transition:transform .15s,background .15s,box-shadow .15s}.primary{background:linear-gradient(135deg,#09877e,#087268);color:white;box-shadow:0 7px 16px #08786e24}.primary:hover{background:linear-gradient(135deg,#08776e,#075c60);transform:translateY(-1px)}.secondary{background:#e7f4f2;color:#12645d}.secondary:hover{background:#d9eeea}.danger{background:#fff0f1;color:#a9364e}.danger:hover{background:#ffe1e5}.ghost{background:transparent;color:#47646a}.ghost:hover{background:#eaf2f2}.full{width:100%;margin-top:8px}.message{min-height:24px;margin:10px 2px 0;color:#a83c4d;font-size:13px}.status-box{border:1px solid #bfe6dc;background:#effbf7;color:#176b5e;padding:14px;border-radius:12px;margin-top:15px;font-size:13px}.status-box.error-box{border-color:#f1c3cc;background:#fff4f5;color:#a2344c}.auth-footnote{font-size:12px;color:#768c91;text-align:center;margin:16px auto 0;max-width:420px}
+    .app-frame{min-height:100vh;display:grid;grid-template-columns:256px minmax(0,1fr);max-width:1680px;margin:auto}.sidebar{position:sticky;top:0;height:100vh;padding:25px 16px 18px;background:#0a2028;color:#e9f5f4;display:flex;flex-direction:column;border-right:1px solid #173941}.sidebar .brand{padding:4px 10px 25px}.sidebar .brand small{color:#77999d}.side-caption{padding:0 12px 10px;color:#6e9397;text-transform:uppercase;letter-spacing:.16em;font-size:10px;font-weight:800}.side-nav{display:grid;gap:5px}.nav-item{display:flex;align-items:center;gap:12px;width:100%;border:1px solid transparent;background:transparent;color:#a9c2c2;text-align:left;border-radius:12px;padding:11px 12px;font-weight:650;font-size:13px}.nav-item:hover{background:#ffffff0c;color:#fff}.nav-item.active{background:linear-gradient(110deg,#0d6967,#10474d);border-color:#69cdb522;color:white;box-shadow:inset 3px 0 #77e4c8}.nav-icon{width:21px;height:21px;border:1px solid #447174;border-radius:7px;display:grid;place-items:center;font-size:11px;color:#9de6d2}.nav-item.active .nav-icon{border-color:#83dfc6;color:#d2fff1}.sidebar-spacer{flex:1}.account-mini{border:1px solid #24474e;border-radius:14px;padding:14px;background:#102b33}.account-mini-label{color:#83aaa9;font-size:11px}.account-mini strong{display:block;margin-top:4px;overflow-wrap:anywhere}.account-mini .role-pill{display:inline-flex;margin-top:9px}
+    .main-area{min-width:0;padding:25px clamp(18px,3vw,44px) 54px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #d9e5e6;padding:0 0 20px;margin-bottom:27px}.topbar h1{font-size:28px;letter-spacing:-.035em;margin:2px 0}.topbar p{margin:0;color:var(--muted);font-size:13px}.top-actions{display:flex;align-items:center;gap:8px}.identity-pill{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 12px 7px 8px}.avatar{width:31px;height:31px;border-radius:50%;display:grid;place-items:center;color:#06494b;background:linear-gradient(145deg,#bbf7df,#7ad5cf);font-weight:800;font-size:12px}.identity-text{font-size:12px;font-weight:800}.role-pill{font-size:10px;padding:3px 7px;border-radius:999px;background:#e3f5f0;color:#197366;font-weight:800}
+    .view-panel{display:grid;gap:19px}.welcome-banner{position:relative;overflow:hidden;min-height:220px;padding:30px clamp(22px,4vw,46px);border-radius:23px;background:linear-gradient(112deg,#0b2c37,#0d565b 72%,#087c71);color:#f1fffb;box-shadow:0 18px 45px #062d3528;display:flex;align-items:center;justify-content:space-between;gap:28px}.welcome-banner:after{content:"";position:absolute;width:360px;height:360px;border:1px solid #a4fbe321;border-radius:50%;right:-50px;top:-145px;box-shadow:0 0 0 35px #d5ffef09,0 0 0 78px #d5ffef06}.welcome-copy,.welcome-art{position:relative;z-index:1}.welcome-copy .eyebrow{color:#8ce7cb}.welcome-copy h2{font-size:clamp(26px,3.2vw,40px);line-height:1.15;margin:10px 0;letter-spacing:-.04em}.welcome-copy p{max-width:640px;color:#c5e5e0;margin:0 0 16px}.welcome-art{flex:0 0 180px;height:145px;border:1px solid #c8fff32b;border-radius:19px;background:linear-gradient(155deg,#baf8e51a,#6bf0c10a);display:grid;place-items:center}.orbit{width:98px;height:98px;border:1px solid #85dfce88;border-radius:50%;position:relative;box-shadow:0 0 40px #5ef3cc22}.orbit:before,.orbit:after{content:"";position:absolute;inset:13px;border:1px solid #94e9d555;border-radius:50%;transform:rotateX(63deg) rotateZ(25deg)}.orbit:after{transform:rotateX(63deg) rotateZ(-35deg)}.orbit-dot{position:absolute;width:14px;height:14px;background:#acffe1;border-radius:50%;top:9px;right:13px;box-shadow:0 0 18px #8cf8d4}
+    .stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.stat-card{border:1px solid var(--line);border-radius:16px;background:#fff;padding:17px 18px;box-shadow:0 5px 18px #173b4108}.stat-label{font-size:12px;color:var(--muted)}.stat-value{font-size:25px;font-weight:850;letter-spacing:-.04em;margin-top:2px}.stat-note{font-size:11px;color:#7d9296;margin-top:3px}.panel-card{background:var(--surface);border:1px solid var(--line);border-radius:17px;padding:22px;box-shadow:0 5px 20px #173b4108;min-width:0}.panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:16px}.panel-heading h2,.panel-card h2{font-size:18px;letter-spacing:-.02em;margin:0 0 5px}.panel-heading p,.panel-card>p{margin:0;color:var(--muted);font-size:13px}.steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.step-card{border:1px solid #e0e9e9;background:#f9fbfb;border-radius:14px;padding:16px;min-height:165px;display:flex;flex-direction:column;align-items:flex-start}.step-number{display:grid;place-items:center;width:27px;height:27px;border-radius:9px;background:#dff4ed;color:#13756a;font-size:12px;font-weight:850}.step-card h3{font-size:14px;margin:13px 0 5px}.step-card p{font-size:12px;color:var(--muted);margin:0 0 13px}.step-card button{margin-top:auto}.section-heading h2{font-size:22px;letter-spacing:-.03em;margin:0 0 4px}.section-heading p{font-size:13px;color:var(--muted);margin:0}.split-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}.form-grid .field{margin:7px 0}.item-list{display:grid;gap:10px}.item-card{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;border:1px solid #e1eaea;border-radius:13px;padding:14px 15px;background:#fff}.item-main{min-width:0}.item-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:800;font-size:14px}.item-card p{font-size:12px;color:var(--muted);margin:6px 0 0;overflow-wrap:anywhere}.item-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}.state-tag{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;border-radius:999px;padding:4px 8px;background:#eef3f4;color:#617a80}.state-tag.good{background:#e3f6ef;color:#18745f}.state-tag.wait{background:#fff4dc;color:#976713}.state-tag.bad{background:#ffedf0;color:#a13a50}.empty-state{padding:24px 18px;text-align:center;border:1px dashed #ccdada;border-radius:13px;background:#f8fbfb;color:#70868a;font-size:13px}.empty-state strong{display:block;color:#36535a;margin-bottom:4px}.notice{border:1px solid #d0e8e5;background:#f0f9f7;padding:13px 15px;border-radius:12px;font-size:12px;color:#426a6d}.notice strong{color:#126960}.code-block{position:relative;background:#0e252e;border:1px solid #24464d;border-radius:13px;padding:16px;color:#c8fff0;overflow:auto;font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere}.code-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}.code-label{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#68848a;margin:14px 0 7px}.request-card{border:1px solid #dfe9e9;border-radius:14px;background:#fff;padding:16px}.request-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}.request-id{font:11px ui-monospace,monospace;color:#82969a}.request-route{font-size:13px;font-weight:800;overflow-wrap:anywhere}.request-card pre{font:13px/1.55 inherit;white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f8f8;border-radius:10px;padding:12px;margin:11px 0}.request-card .answer{border-left:3px solid #45b49b}.request-card .request-actions{display:flex;gap:8px;flex-wrap:wrap}.message{min-height:22px;font-size:13px;color:#a63a4c;margin:-12px 0 14px;padding-left:3px}.message.success{color:#147364}.message.info{color:#617981}.account-security-grid{max-width:760px}.admin-note{display:flex;align-items:center;gap:12px;border:1px solid #d9e8ea;background:#f4f9fa;border-radius:13px;padding:14px 16px;color:#46656c;font-size:12px}.admin-note b{color:#176b66}
+    @media(max-width:1020px){.app-frame{grid-template-columns:220px minmax(0,1fr)}.welcome-art{flex-basis:140px;height:125px}.split-grid{grid-template-columns:1fr}}
+    @media(max-width:760px){.auth-screen{grid-template-columns:1fr;padding:15px;gap:17px;align-items:start}.auth-story{min-height:unset;padding:24px;border-radius:24px}.auth-story .eyebrow{margin-top:36px}.auth-story h1{font-size:36px}.auth-story>div>p{font-size:14px}.value-points{margin-top:22px}.value-point{padding:10px;font-size:10px}.value-point strong{font-size:11px}.signal{margin-top:18px}.auth-panel{max-width:unset}.auth-card{padding:19px}.app-frame{display:block}.sidebar{position:sticky;z-index:5;top:0;height:auto;padding:10px 12px;background:#0a2028;border-right:0;border-bottom:1px solid #23434b}.sidebar .brand{display:none}.side-caption,.sidebar-spacer,.account-mini{display:none}.side-nav{display:flex;overflow:auto;gap:6px;scrollbar-width:none}.side-nav::-webkit-scrollbar{display:none}.nav-item{white-space:nowrap;width:auto;flex:0 0 auto;padding:9px 11px;font-size:12px}.nav-icon{width:18px;height:18px}.main-area{padding:18px 14px 38px}.topbar{align-items:flex-start;margin-bottom:18px}.topbar h1{font-size:23px}.topbar p{max-width:48ch}.identity-pill{padding:5px 8px}.identity-text{max-width:100px;overflow:hidden;text-overflow:ellipsis}.top-actions .refresh-label{display:none}.welcome-banner{padding:24px 20px;min-height:unset}.welcome-art{display:none}.welcome-copy h2{font-size:29px}.stat-grid{gap:8px}.stat-card{padding:13px}.stat-value{font-size:21px}.stat-note{font-size:10px}.steps-grid{grid-template-columns:1fr}.step-card{min-height:unset}.form-grid{grid-template-columns:1fr;gap:0}.panel-card{padding:17px}.item-card{display:block}.item-actions{justify-content:flex-start;margin-top:12px}.top-actions{gap:3px}.topbar>.top-actions .secondary{padding:9px 10px}}
+    @media(prefers-reduced-motion:no-preference){.welcome-banner,.panel-card,.auth-card{animation:rise .35s ease both}@keyframes rise{from{opacity:.65;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}}
+  </style>
+</head>
+<body>
+  <section id="auth-screen" class="auth-screen">
+    <div class="auth-story">
+      <div>
+        <div class="brand"><span class="brand-mark">PL</span><span>Peerlink<small>TEAM PROJECT NETWORK</small></span></div>
+        <div class="eyebrow">把团队项目连接起来</div>
+        <h1>让项目 Agent<br><span>安全地彼此协作</span></h1>
+        <p>先用 ERP 账号加入团队，再把自己的电脑连接到项目。项目文件留在本机，是否执行、是否发送答案，都由人确认。</p>
+        <div class="value-points">
+          <div class="value-point"><strong>① 登录团队</strong>账号与电脑分开绑定</div>
+          <div class="value-point"><strong>② 连接项目</strong>只登记你确认的目录</div>
+          <div class="value-point"><strong>③ 人工把关</strong>执行与发送都需确认</div>
+        </div>
+      </div>
+      <div class="signal"><i></i> 云端协调 · 本地执行 · 过程可审查</div>
     </div>
-  </main>
-</div>
-<script src="/app.js?v=20260923-account1" defer></script></html>
+    <div class="auth-panel">
+      <div class="auth-panel-head"><div class="eyebrow">WELCOME TO PEERLINK</div><h2>从这里开始</h2><p class="muted">已加入团队？登录。第一次使用？申请注册。</p></div>
+      <div class="auth-card">
+        <div class="auth-tabs" role="tablist" aria-label="登录或注册">
+          <button type="button" id="auth-tab-login" class="auth-tab active" role="tab" aria-selected="true">登录</button>
+          <button type="button" id="auth-tab-register" class="auth-tab" role="tab" aria-selected="false">申请加入</button>
+        </div>
+        <form id="login-form" class="auth-form">
+          <h3>欢迎回来</h3><p>管理员和普通成员使用同一个入口。</p>
+          <div class="field"><label for="login-name">ERP 用户名</label><input id="login-name" autocomplete="username" placeholder="例如 yujunjie.50" required></div>
+          <div class="field"><label for="login-password">密码</label><input id="login-password" type="password" autocomplete="current-password" required></div>
+          <button type="submit" class="primary full">登录团队空间</button>
+        </form>
+        <form id="register-form" class="auth-form" hidden>
+          <h3>申请加入团队</h3><p>提交后由管理员审批；批准后即可登录。</p>
+          <div class="field"><label for="register-name">ERP 用户名</label><input id="register-name" autocomplete="username" pattern="[a-zA-Z0-9._-]+" placeholder="例如 yujunjie.50" required><div class="field-hint">支持字母、数字、点、下划线和短横线。</div></div>
+          <div class="field"><label for="register-password">设置密码</label><input id="register-password" type="password" minlength="10" maxlength="128" autocomplete="new-password" placeholder="至少 10 位" required></div>
+          <div class="field"><label for="register-confirm">再次输入密码</label><input id="register-confirm" type="password" autocomplete="new-password" required></div>
+          <button type="submit" class="primary full">提交注册申请</button>
+          <div id="registration-status" class="status-box" role="status" hidden></div>
+        </form>
+      </div>
+      <div id="auth-message" class="message" role="alert"></div>
+      <p class="auth-footnote">Peerlink 不会读取或上传你的项目文件。你只分享明确选择的路径映射。</p>
+    </div>
+  </section>
+
+  <div id="workspace" class="app-frame" hidden>
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">PL</span><span>Peerlink<small>TEAM SPACE</small></span></div>
+      <div class="side-caption">工作台</div>
+      <nav class="side-nav" aria-label="主导航">
+        <button type="button" class="nav-item active" data-view="overview"><span class="nav-icon">⌂</span>总览</button>
+        <button type="button" class="nav-item" data-view="devices"><span class="nav-icon">01</span>连接电脑</button>
+        <button type="button" class="nav-item" data-view="projects"><span class="nav-icon">02</span>项目目录</button>
+        <button type="button" class="nav-item" data-view="collaboration"><span class="nav-icon">03</span>提问与请求</button>
+        <button type="button" class="nav-item" data-view="security"><span class="nav-icon">⚙</span>账号安全</button>
+        <button type="button" class="nav-item" data-view="admin" id="nav-admin" hidden><span class="nav-icon">✦</span>管理员</button>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="account-mini"><span class="account-mini-label">当前登录账号</span><strong id="side-identity"></strong><span id="side-role" class="role-pill">成员</span></div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div><div class="eyebrow">PEERLINK WORKSPACE</div><h1 id="page-title">总览</h1><p id="page-subtitle">先连接电脑，再绑定项目，最后开始协作。</p></div>
+        <div class="top-actions">
+          <div class="identity-pill"><span class="avatar" id="avatar-letter">P</span><span><span id="identity" class="identity-text"></span><span id="role-badge" class="role-pill">成员</span></span></div>
+          <button type="button" id="refresh" class="secondary"><span class="refresh-label">刷新</span> ↻</button>
+          <button type="button" id="logout" class="ghost">退出</button>
+        </div>
+      </header>
+      <div id="workspace-message" class="message" role="alert" aria-live="polite"></div>
+
+      <section id="view-overview" class="view-panel" data-view-panel="overview">
+        <div class="welcome-banner"><div class="welcome-copy"><div class="eyebrow">YOUR TEAM, YOUR PROJECTS</div><h2>欢迎来到 Peerlink</h2><p>按下面三步开始。网页负责账号、审批和请求；本地项目路径由你在自己的电脑上确认并绑定。</p><button type="button" class="primary" data-go="devices">开始连接电脑</button></div><div class="welcome-art" aria-hidden="true"><div class="orbit"><span class="orbit-dot"></span></div></div></div>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-label">已连接电脑</div><div id="stat-devices" class="stat-value">—</div><div class="stat-note">只属于当前登录账号</div></div>
+          <div class="stat-card"><div class="stat-label">可用云端项目</div><div id="stat-projects" class="stat-value">—</div><div class="stat-note">可绑定到这台电脑</div></div>
+          <div class="stat-card"><div class="stat-label">待我处理</div><div id="stat-pending" class="stat-value">—</div><div class="stat-note">需要审批或跟进的请求</div></div>
+        </div>
+        <section class="panel-card">
+          <div class="panel-heading"><div><h2>新手开始指南</h2><p>顺序完成即可；没有本机项目时可以跳过第二步。</p></div><span class="state-tag good">3 步上手</span></div>
+          <div class="steps-grid">
+            <article class="step-card"><span class="step-number">01</span><h3>连接这台电脑</h3><p>生成一次性配对码，在本机终端运行连接命令。</p><button type="button" class="secondary" data-go="devices">去连接电脑</button></article>
+            <article class="step-card"><span class="step-number">02</span><h3>绑定本机项目</h3><p>选择云端项目，再填本机目录；网页只生成命令，不上传路径或文件。</p><button type="button" class="secondary" data-go="projects">去绑定项目</button></article>
+            <article class="step-card"><span class="step-number">03</span><h3>开始协作</h3><p>向同事的项目 Agent 提问，或处理别人发来的请求。</p><button type="button" class="secondary" data-go="collaboration">查看协作</button></article>
+          </div>
+        </section>
+        <div class="notice"><strong>账号隔离：</strong>本机可以分别保存多个 Peerlink 账号。每个账号使用独立状态目录；切换账号不会覆盖另一账号的设备绑定。</div>
+      </section>
+
+      <section id="view-devices" class="view-panel" data-view-panel="devices" hidden>
+        <div class="section-heading"><h2>连接这台电脑</h2><p>这一步只绑定设备，不会读取或上传项目内容。请确保网页登录的是你要使用的账号。</p></div>
+        <div class="split-grid">
+          <section class="panel-card"><div class="panel-heading"><div><h2>1. 生成一次性配对码</h2><p>在 10 分钟内使用，且仅能绑定一次。</p></div><span class="step-number">01</span></div><div class="field"><label for="device-name">给这台电脑起个名字</label><input id="device-name" maxlength="100" value="我的电脑" placeholder="例如：MacBook Pro"></div><button type="button" id="pair-device" class="primary">生成配对码</button><div id="pairing-code" class="status-box" hidden></div><div id="connect-command-wrap" hidden><div class="code-label">复制到本机终端运行</div><pre id="connect-command" class="code-block"></pre><div class="code-actions"><button type="button" id="copy-connect" class="secondary">复制连接命令</button></div></div></section>
+          <section class="panel-card"><h2>2. 查看已连接的电脑</h2><p>配对命令运行成功后，刷新本页即可看到设备。撤销设备会立即使该设备凭证失效。</p><div id="devices" class="item-list" style="margin-top:15px"></div></section>
+        </div>
+        <div class="notice"><strong>多个账号分开：</strong>连接命令会使用 `~/.peerlink-用户名` 作为独立状态目录。后续 CLI 命令和 Codex Skill 也必须使用同一目录。若要让 Codex 插件自动继承此账号，请从运行过连接命令的同一终端启动 Codex；从 Dock 启动的应用不会自动继承终端环境变量。</div>
+      </section>
+
+      <section id="view-projects" class="view-panel" data-view-panel="projects" hidden>
+        <div class="section-heading"><h2>项目目录与本机路径</h2><p>云端项目目录是团队共享的项目名册；本机路径绑定是把你电脑上的指定文件夹映射给其中一个项目。两者不是同一步。</p></div>
+        <section class="panel-card"><div class="panel-heading"><div><h2>第 1 步 · 选择一个云端项目</h2><p>只有“可用”项目可以绑定。待审批项目要等管理员批准。</p></div><span class="step-number">01</span></div><div id="catalog-projects" class="item-list"></div></section>
+        <section class="panel-card"><div class="panel-heading"><div><h2>第 2 步 · 生成本机绑定命令</h2><p>在电脑本机填写目录并复制命令；只有你在终端运行后，路径映射才会提交给 Hub。</p></div><span class="step-number">02</span></div>
+          <div class="form-grid"><div class="field"><label for="binding-project">云端项目</label><select id="binding-project"><option value="">先选择项目</option></select></div><div class="field"><label for="binding-runtime">运行方式</label><select id="binding-runtime"><option value="codex-docker">Codex 执行环境（需已配置）</option><option value="mock">仅验证流程（不会调用模型）</option></select></div></div>
+          <div class="field"><label for="binding-path">这台电脑上的项目文件夹</label><input id="binding-path" type="text" autocomplete="off" spellcheck="false" placeholder="例如：/Users/你的用户名/Projects/my-project"><div class="field-hint">填写项目目录的绝对路径。不要选整个磁盘、根目录或整个个人目录。</div></div>
+          <button type="button" id="generate-binding" class="primary">生成绑定命令</button>
+          <div id="binding-command-wrap" hidden><div class="notice" style="margin-top:16px"><strong>隐私说明：</strong>这个网页不会发送你刚填写的路径。命令执行时 Hub 会保存路径映射和运行方式，但不会因此收到项目文件。</div><div class="code-label">在本机终端运行</div><pre id="binding-command" class="code-block"></pre><div class="code-actions"><button type="button" id="copy-binding" class="secondary">复制命令</button></div></div>
+        </section>
+        <section class="panel-card"><div class="panel-heading"><div><h2>云端还没有这个项目？</h2><p id="catalog-mode-note">成员提交后由管理员审批；管理员创建的项目会立即加入目录。</p></div></div><div class="form-grid"><div class="field"><label for="catalog-id">项目标识</label><input id="catalog-id" pattern="[a-zA-Z0-9_-]+" maxlength="80" placeholder="例如：research-tool"></div><div class="field"><label for="catalog-description">项目说明</label><input id="catalog-description" maxlength="1000" placeholder="项目用途或能回答的问题"></div></div><button type="button" id="catalog-submit" class="secondary">申请加入云端目录</button></section>
+      </section>
+
+      <section id="view-collaboration" class="view-panel" data-view-panel="collaboration" hidden>
+        <div class="section-heading"><h2>提问与请求</h2><p>向已开放项目提问，或处理发给你项目的请求。执行前仍需项目负责人在网页批准。</p></div>
+        <section class="panel-card"><div class="panel-heading"><div><h2>发起一个问题</h2><p>选择成员和项目，再描述你需要了解的内容。</p></div><span class="step-number">01</span></div><div class="form-grid"><div class="field"><label for="peer">项目负责人</label><select id="peer"></select></div><div class="field"><label for="project">对方开放的项目</label><select id="project"></select></div></div><div class="field"><label for="question">你想了解什么？</label><textarea id="question" placeholder="说清背景、问题和期望的回答范围"></textarea></div><button type="button" id="ask" class="primary">发送请求</button></section>
+        <section class="panel-card"><div class="panel-heading"><div><h2>请求收件箱</h2><p>需要你批准的请求会显示在这里。未经本人确认的草稿不会发给提问者。</p></div><button type="button" id="refresh-requests" class="secondary">刷新列表</button></div><div id="requests" class="item-list"></div></section>
+      </section>
+
+      <section id="view-security" class="view-panel" data-view-panel="security" hidden>
+        <div class="section-heading"><h2>账号安全</h2><p>账号使用 ERP 用户名和 Peerlink 密码；电脑设备凭证与登录密码分开保存。</p></div>
+        <section class="panel-card account-security-grid"><h2>修改密码</h2><p>修改后会退出其他登录会话，需要重新登录。</p><div class="field"><label for="current-password">当前密码</label><input id="current-password" type="password" autocomplete="current-password"></div><div class="field"><label for="new-password">新密码（至少 10 位）</label><input id="new-password" type="password" minlength="10" maxlength="128" autocomplete="new-password"></div><div class="field"><label for="confirm-new-password">再次输入新密码</label><input id="confirm-new-password" type="password" autocomplete="new-password"></div><button type="button" id="change-password" class="primary">修改密码并退出其他会话</button><hr style="border:0;border-top:1px solid var(--line);margin:22px 0"><h2>登录会话</h2><p>在不方便逐台退出时，可以一次退出所有登录设备。</p><button type="button" id="revoke-sessions" class="danger" style="margin-top:12px">退出所有登录设备</button></section>
+      </section>
+
+      <section id="view-admin" class="view-panel" data-view-panel="admin" hidden>
+        <div class="section-heading"><h2>管理员工作台</h2><p>这里只放需要管理员处理的成员审批与团队治理操作。</p></div>
+        <div class="admin-note"><span class="step-number">✦</span><span><b>管理员权限</b> 可以批准/停用成员，并审核团队项目目录。普通成员不会看到此页面。</span></div>
+        <section class="panel-card"><div class="panel-heading"><div><h2>成员审批与账号</h2><p>先核实 ERP 用户名，再批准加入或管理现有账号。</p></div><button type="button" id="refresh-users" class="secondary">刷新成员</button></div><div id="users" class="item-list"></div></section>
+      </section>
+    </main>
+  </div>
+  <style>.request-card pre{font-family:inherit;font-size:13px;line-height:1.55}</style>
+  <script src="/app.js?v=20260923-studio-ui" defer></script>
+</body>
+</html>

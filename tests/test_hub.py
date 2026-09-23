@@ -20,6 +20,23 @@ def test_public_page_redirects_http_domain_to_https(tmp_path):
     assert 'https://peerlink.jd.com' in page.text
 
 
+def test_workspace_explains_new_member_setup_and_account_isolation(tmp_path):
+    client = TestClient(create_app(tmp_path / "hub.db"))
+
+    page = client.get("/")
+    script = client.get("/app.js")
+
+    assert page.status_code == 200
+    assert script.status_code == 200
+    assert "新手开始指南" in page.text
+    assert "项目目录与本机路径" in page.text
+    assert "网页只生成命令，不上传路径或文件" in page.text
+    assert 'id="binding-path"' in page.text
+    assert "/app.js?v=20260923-studio-ui" in page.text
+    assert 'export PEERLINK_STATE="$HOME/.peerlink-${owner.replace' in script.text
+    assert "project-add" in script.text
+
+
 def test_client_wheel_has_a_stable_download_url(tmp_path, monkeypatch):
     package = tmp_path / f"peerlink-{__version__}-py3-none-any.whl"
     package.write_bytes(b"test wheel")
