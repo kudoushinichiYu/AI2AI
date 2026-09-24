@@ -12,9 +12,11 @@ This handbook covers registration, the lightweight Bridge, device pairing, local
 2. Install the lightweight Peerlink CLI and local Skill:
 
    ```bash
-   python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink.whl
+   python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.5.0-py3-none-any.whl
    peerlink skill-install
    ```
+
+   Use the full versioned URL above. In the deployed 0.5.0 release, the web copy button and `peerlink update-check` may still suggest the short `peerlink.whl` URL; pip rejects that URL as an invalid wheel filename.
 
    A separate Codex CLI is not required for manual `codex-desktop` replies. The Peerlink CLI above is still required for account/device communication. After a CLI update, run `peerlink skill-install --force` with your approval.
 

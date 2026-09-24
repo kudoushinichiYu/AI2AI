@@ -19,14 +19,14 @@ This is process/dependency isolation, not a hardened security boundary against t
 
 ## Service management / 服务托管
 
-1. Build the client wheel from the source checkout with `./scripts/build_wheel.sh` (uses `uv build` when `uv` is installed; otherwise install the `build` package first). The script writes `dist/peerlink-<version>-py3-none-any.whl`; copy that artifact to the Hub's `downloads/` directory as `peerlink-<version>-py3-none-any.whl`. The Hub serves it from the stable URL `/downloads/peerlink.whl`. Install `requirements.lock` into the release's virtual environment, then install the server package with `pip install --no-deps <release-directory>`. Use the environment's trusted package mirror if necessary.
+1. Build the client wheel from the source checkout with `./scripts/build_wheel.sh` (uses `uv build` when `uv` is installed; otherwise install the `build` package first). The script writes `dist/peerlink-<version>-py3-none-any.whl`; copy that artifact to the Hub's `downloads/` directory as `peerlink-<version>-py3-none-any.whl`. Give members the versioned URL `/downloads/peerlink-<version>-py3-none-any.whl` for `pip install`; the legacy `/downloads/peerlink.whl` browser alias is not a valid pip wheel URL. Install `requirements.lock` into the release's virtual environment, then install the server package with `pip install --no-deps <release-directory>`. Use the environment's trusted package mirror if necessary.
 
 2. Run the test suite in that environment before activation. Older Docker versions may not support `docker exec --workdir`; use absolute paths instead.
 3. Copy [the service example](peerlink-hub.service.example), replacing `@CONTAINER@`, `@ROOT@`, `@UID@`, and `@GID@` with the verified container name, container-visible persistent root, and dedicated numeric user/group IDs. Do not leave placeholders in the installed unit.
 4. Install it as `/etc/systemd/system/peerlink-hub.service` on the Docker host, then run `systemctl daemon-reload` and `systemctl enable --now peerlink-hub`.
 5. Check `/health`, restart only the new service, verify persistence, and verify the original application still runs.
 
-在源码仓库根目录运行 `./scripts/build_wheel.sh`，生成 `dist/peerlink-<版本>-py3-none-any.whl`。打包源码归档时需保留这个 wheel 于 `dist/`；首次引导脚本会将与源码版本匹配的 wheel 复制到 Hub 下载目录，成员通过稳定地址 `/downloads/peerlink.whl` 安装。首次引导脚本不会覆盖已存在的 `peerlink-hub.service`。
+在源码仓库根目录运行 `./scripts/build_wheel.sh`，生成 `dist/peerlink-<版本>-py3-none-any.whl`。打包源码归档时需保留这个 wheel 于 `dist/`；首次引导脚本会将与源码版本匹配的 wheel 复制到 Hub 下载目录。成员用 `/downloads/peerlink-<版本>-py3-none-any.whl` 安装；旧的 `/downloads/peerlink.whl` 仅保留浏览器下载兼容，不适合直接传给 pip。首次引导脚本不会覆盖已存在的 `peerlink-hub.service`。
 
 先在独立虚拟环境安装并测试；替换服务模板中的容器、挂载路径、UID/GID 后，将 unit 安装到宿主机。启用后验证健康检查、服务重启、数据留存及原服务健康状态。不要改动原容器的启动命令。
 

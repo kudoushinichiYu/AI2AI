@@ -48,7 +48,7 @@ Open [localhost:8000](http://127.0.0.1:8000). To simulate additional members, re
 The local Connector targets macOS and Linux with Python 3.10+. Install the published client and its bundled Codex Skill:
 
 ```bash
-python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink.whl
+python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.5.0-py3-none-any.whl
 peerlink skill-install
 ```
 

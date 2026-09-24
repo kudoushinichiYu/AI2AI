@@ -61,6 +61,10 @@ OpenAI 官方文档中的 [Codex app-server](https://developers.openai.com/codex
 - 已在停止 Peerlink 服务后备份旧 SQLite 数据库，并在独立发布目录上线 Hub/Relay 0.5.0；公开版本 API、网页和 CLI wheel 均已更新。原 `jdme-bot` 容器未重启，原服务健康检查仍为 HTTP 200。旧请求保留；旧 `projects.path` 云端绝对路径按迁移设计清空，备份可用于核对历史值。
 - 线上服务器以非 root 身份运行全量测试：70 项通过。公网 `wss://peerlink.jd.com/api/bridge/ws` 配对设备握手和心跳通过。
 - 使用 `yujunjie.50` 的已配对设备创建临时**私有 Echo Agent**，对现有 `ai-outbound` 目录发送明确标记的测试请求 `81a29fab7282eca2c9c66c01`。本人在网页批准后，本机 Bridge 接收并生成草稿；本人运行 `peerlink review ... --send`，线上请求最终为 `COMPLETED`，回文精确匹配。临时 Agent 已移除；测试没有读取真实项目文件。
-- 这证明了公网 WSS 下行、HTTP 审核上行及逐条人工确认闭环；**不证明**真实 Codex 模型回答、不同成员间双机通信或项目目录访问隔离。下一验收应由两位成员各自升级 0.5.0 客户端、显式绑定测试项目，先做 Echo 双机，再在安全边界确认后测试真实 Codex Backend。
+- 这证明了公网 WSS 下行、HTTP 审核上行及逐条人工确认闭环；**不证明**真实 Codex 模型回答、不同成员间双机通信或项目目录访问隔离。下一验收应由两位成员各自升级当前客户端、显式绑定测试项目，先做 Echo 双机，再在安全边界确认后测试真实 Codex Backend。
+
+## 2026-09-24 wheel 安装说明勘误
+
+线上 0.5.0 的网页复制按钮和 `update-check` 仍把 `/downloads/peerlink.whl` 用于 `pip install`。该浏览器下载别名虽然返回 HTTP 200，URL 文件名却不符合 wheel 命名规则，pip 在安装前报 `Invalid wheel filename`。**本轮只修文档，不发布新安装包或改线上网页。** 请从[成员手册](member-guide.zh-CN.md)复制带版本号的 `/downloads/peerlink-0.5.0-py3-none-any.whl` 安装命令；已用真实 pip 从公网安装验证。已暴露在截图或聊天中的一次性配对码应废弃并重新生成。
 
 **已确认的产品决策：** 新 Bridge 保持每条请求由项目提供方本人批准，答案由本人审核并确认发送。因此“电脑在线即可完全自动回答并分享”不是这一版的行为；后台常驻解决的是接收与执行启动，不代替两次人工确认。

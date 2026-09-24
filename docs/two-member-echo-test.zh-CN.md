@@ -2,7 +2,7 @@
 
 [成员手册](member-guide.zh-CN.md) | [项目首页](../README.zh-CN.md)
 
-本文用于第一次在**两台电脑、两个 ERP 账号**之间验证线上 Peerlink 0.5.0。由 `chenyang.720` 在自己的电脑上开放测试 Agent，`yujunjie.50` 从自己的账号提问。此轮使用 Echo：只验证消息、审批与回传，不读取项目文件，也不调用 Codex 模型。不要交换账号密码、配对码或设备凭证。
+本文用于第一次在**两台电脑、两个 ERP 账号**之间验证线上 Peerlink 0.5.0。由 `chenyang.720` 在自己的电脑上开放测试 Agent，`yujunjie.50` 从自己的账号提问。此轮使用 Echo：只验证消息、审批与回传，不读取项目文件，也不调用 Codex 模型。不要交换账号密码、配对码或设备凭证。其他成员可按相同流程替换各自的 ERP 名称。
 
 ## 1. chenyang.720：准备接收端
 
@@ -10,11 +10,11 @@
 2. 运行 `peerlink update-check`，确认 CLI 目标版本为 `0.5.0`。如果旧 CLI 不认识该命令，或提示有更新，先在本人电脑执行：
 
    ```bash
-   python3 -m pip install --user --upgrade https://peerlink.jd.com/downloads/peerlink.whl
+   python3 -m pip install --user --upgrade https://peerlink.jd.com/downloads/peerlink-0.5.0-py3-none-any.whl
    peerlink update-check
    ```
 
-   核对输出中 `cli.installed` 和 `cli.latest` 均为 `0.5.0`；若安装后仍显示旧版，先运行 `command -v peerlink` 检查当前调用的命令位置。已安装旧后台服务时，更新 CLI 后在第 4 步重新运行 `service-install`。本轮直接用 CLI 测试，不要求先更新 Codex 插件。
+   核对输出中 `cli.installed` 和 `cli.latest` 均为 `0.5.0`；若安装后仍显示旧版，先运行 `command -v peerlink` 检查当前调用的命令位置。线上 0.5.0 的 `update-check` 仍可能打印无效的 `peerlink.whl` 简写安装地址，请始终使用上面带版本号的命令。已安装旧后台服务时，更新 CLI 后在第 4 步重新运行 `service-install`。本轮直接用 CLI 测试，不要求先更新 Codex 插件。
 3. 运行 `peerlink catalog`，确认 `ai-outbound` 为 `ACTIVE`，并由本人确认电脑上对应的**具体项目目录**。只有确实拥有该目录时才运行下面的命令；把示例路径替换为自己的绝对路径，不要填 `/`、整个 Home 或凭证目录：
 
    ```bash

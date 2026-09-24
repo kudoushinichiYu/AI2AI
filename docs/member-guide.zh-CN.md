@@ -14,10 +14,12 @@ Peerlink 把云端项目名册与本机 Agent 分开：服务器只负责账号�
 2. 在 macOS 或 Linux 上安装 Python 3.10+ 和 Peerlink 轻量客户端：
 
    ```bash
-   python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink.whl
+   python3 -m pip install --user https://peerlink.jd.com/downloads/peerlink-0.5.0-py3-none-any.whl
    peerlink skill-install
    peerlink status
    ```
+
+   请使用上面的**完整带版本号地址**。线上 0.5.0 网页“复制客户端更新命令”和旧客户端 `peerlink update-check` 仍可能给出 `peerlink.whl` 简写地址，直接传给 pip 会报 `Invalid wheel filename`。不要用该简写地址安装。
 
    在 Codex 桌面端新建任务后即可使用 Peerlink Skill；不需要另外安装 Codex CLI 插件。后续更新 CLI 后运行 `peerlink skill-install --force` 更新 Skill，安装前先确认来源与版本。
 3. 在网页“连接这台电脑”生成一次性配对码，按网页生成的命令运行 `peerlink connect`。密码不交给 Codex，配对码只使用一次。
