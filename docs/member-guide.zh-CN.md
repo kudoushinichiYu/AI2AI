@@ -42,6 +42,19 @@ peerlink service-status
 
 `--visibility private` 是默认值，只能本人测试；要让其他成员提问，使用 `team` 或 `allowlist --allow-user <ERP用户名>`。本机路径只保存在 `agents.json`，不会作为 Agent 元数据发到服务器。不要注册 `/`、整个 Home 或凭证目录。服务需要电脑保持在线；Bridge 仅主动连接服务器，不在本机开放监听端口。
 
+### 绑定错了本机路径怎么办？
+
+线上 0.5.0 尚无直接修改路径的命令。路径只在本机，不在网页或云端；网页不能替你选电脑上的目录。先用 `peerlink agent list` 确认 Agent 和旧路径，并检查 `peerlink requests` 是否有发给**自己这个 Agent** 的未完成请求。若有，先由双方处理；`agent remove` 会取消这些请求。确认后，在同一账号状态目录执行：
+
+```bash
+peerlink agent remove <项目标识>
+peerlink agent add <项目标识> '/本机/正确的具体项目目录' --backend echo --visibility allowlist --allow-user <允许提问的ERP用户名>
+peerlink agent list
+peerlink service-install
+```
+
+第二行要按原来的 Backend 和可见范围重新填写；示例只适用于 Echo 白名单测试。不要绑定 `/Users`、`/home` 这类用户目录集合。`agent remove` 不会删除本机项目文件，也不会影响自己**发给别人**的请求，但会删除自己的云端 Agent 注册并取消发给它的未完成请求。后续版本将提供只改本机路径的 `agent rebind`，**线上 0.5.0 还不能运行该命令**。
+
 如果只有 Codex 桌面端、没有 app-server 可执行程序，可继续手动回答：
 
 ```bash

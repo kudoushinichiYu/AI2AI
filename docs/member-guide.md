@@ -23,9 +23,22 @@ This handbook covers registration, the lightweight Bridge, device pairing, local
 3. Start a new Codex task so the plugin is loaded. In the web page, generate a ten-minute one-time code under **My devices**, then ask Codex to pair Peerlink with that code. Never give Codex your account password.
 4. Run `peerlink catalog`, confirm each concrete local path and sharing scope, and bind only projects you approve. Use `peerlink agent add <id> <absolute-path> --backend echo --visibility private` to test the Bridge, then use `--backend codex-app-server` when a separate local app-server executable is available. Use `--visibility team` only after explicitly deciding to share with teammates. Run `peerlink service-install` to maintain the outbound connection. If only Codex Desktop is installed, use `peerlink project-add <id> <absolute-path> --runtime codex-desktop` for manual Skill-assisted replies. Never bind `/`, the entire home directory, or a credentials directory.
 
-The Peerlink Skill checks client and plugin releases whenever it is used. An installed background Connector also checks periodically and can show desktop notifications. Checks never install updates silently. Existing older installations need a one-time update from the web app before automatic checks are available. After confirming, update the CLI with the command shown by `peerlink update-check`; for the plugin, refresh the marketplace and remove/reinstall Peerlink. The web app also displays current releases and update instructions.
+The Peerlink Skill checks client and plugin releases whenever it is used. An installed background Connector also checks periodically and can show desktop notifications. Checks never install updates silently. Existing older installations need a one-time update. For the deployed 0.5.0 release, use the versioned CLI install URL above, not the shorter URL suggested by `peerlink update-check` or the web copy button; for the plugin, refresh the marketplace and remove/reinstall Peerlink after confirming the update.
 
 The Hub stores project IDs, descriptions, device routing, and access scope, never a Bridge Agent's workspace path or repository contents. The device credential is stored in the selected state directory's `connector.json`; never print, upload, or commit it.
+
+### Correct a wrong local project path
+
+The deployed 0.5.0 CLI has no direct rebind command. The path exists only in this computer's `agents.json`, so the web page cannot select or change it. Run `peerlink agent list` to inspect the binding and `peerlink requests` to check for unfinished incoming requests to this Agent. Removing it cancels those incoming requests; handle them first. Then, using the same account state directory, run:
+
+```bash
+peerlink agent remove <project-id>
+peerlink agent add <project-id> '/correct/local/project/path' --backend echo --visibility allowlist --allow-user <allowed-ERP-username>
+peerlink agent list
+peerlink service-install
+```
+
+Repeat the original backend and visibility settings; the example is only for an Echo allowlist test. Do not bind `/Users`, `/home`, the entire home directory, or a credentials directory. Removing an Agent does not delete project files or your outgoing requests, but it does remove its cloud registration and cancel unfinished incoming requests. A local-only `agent rebind` command is being prepared and is **not available in the deployed 0.5.0 CLI**.
 
 ## Propose a new project
 

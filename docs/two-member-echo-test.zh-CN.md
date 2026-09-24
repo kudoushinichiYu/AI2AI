@@ -21,7 +21,7 @@
    peerlink agent add ai-outbound /你的实际项目目录 --backend echo --visibility allowlist --allow-user yujunjie.50
    ```
 
-   `allowlist` 只让指定成员发现该 Agent。如果本机已有同名 Agent，不要直接覆盖或删除，先确认现有配置。若没有 `ai-outbound` 的本机目录，先联系测试双方选择另一个已获管理员批准的项目标识。
+   `allowlist` 只让指定成员发现该 Agent。如果本机已有同名 Agent 或绑错目录，先按[成员手册的路径纠正步骤](member-guide.zh-CN.md#绑定错了本机路径怎么办)核对未完成请求，再移除并重新绑定；不要直接重复 `agent add`。若没有 `ai-outbound` 的本机目录，先联系测试双方选择另一个已获管理员批准的项目标识。
 4. 运行：
 
    ```bash
