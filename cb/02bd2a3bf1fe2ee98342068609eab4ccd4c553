@@ -1,0 +1,23 @@
+docs/two-member-echo-test.zh-CN.md
+  s_2f75bfd3e049f0::t_add1512e356f8c 24
+docs/member-guide.md
+  s_2f75bfd3e049f0::t_0dd236e4a74807 26,30-41
+docs/member-guide.zh-CN.md
+  s_2f75bfd3e049f0::t_add1512e356f8c 45-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "cb02bd2a3bf1fe2ee98342068609eab4ccd4c553",
+  "prompts": {},
+  "sessions": {
+    "s_2f75bfd3e049f0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c2ff-22f2-7123-a418-c80eee7dba32",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "kudoushinichiYu <2449315540@qq.com>"
+    }
+  }
+}
