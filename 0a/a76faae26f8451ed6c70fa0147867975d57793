@@ -1,0 +1,52 @@
+peerlink/releases.py
+  s_2f75bfd3e049f0::t_c099b68a9b93ae 10,57
+peerlink/static/app.js
+  s_2f75bfd3e049f0::t_c099b68a9b93ae 408-409
+README.md
+  s_2f75bfd3e049f0::t_5e08e89c76e18a 14,87
+tests/test_connector.py
+  s_2f75bfd3e049f0::t_c099b68a9b93ae 199-200
+docs/member-guide.md
+  s_2f75bfd3e049f0::t_5e08e89c76e18a 7,15
+plugins/peerlink/.codex-plugin/plugin.json
+  s_2f75bfd3e049f0::t_c099b68a9b93ae 3
+docs/guide.md
+  s_2f75bfd3e049f0::t_5e08e89c76e18a 7,51
+docs/two-member-echo-test.zh-CN.md
+  s_2f75bfd3e049f0::t_5e08e89c76e18a 5,10,13,17
+peerlink/bundled_skill/SKILL.md
+  s_2f75bfd3e049f0::t_c5d59d5786bc0d 8
+docs/peerlink-bridge-migration.zh-CN.md
+  s_2f75bfd3e049f0::t_3f4e8e9210020e 64-68
+tests/test_hub.py
+  s_2f75bfd3e049f0::t_c099b68a9b93ae 60,66,72-74
+  s_2f75bfd3e049f0::t_a196fbdc60b833 77-82
+README.zh-CN.md
+  s_2f75bfd3e049f0::t_5e08e89c76e18a 14,87
+peerlink/__init__.py
+  s_2f75bfd3e049f0::t_c099b68a9b93ae 3
+plugins/peerlink/skills/peerlink/SKILL.md
+  s_2f75bfd3e049f0::t_039ac4d65d92fb 8
+docs/guide.zh-CN.md
+  s_2f75bfd3e049f0::t_5e08e89c76e18a 7,79
+deploy/existing-container/README.md
+  s_2f75bfd3e049f0::t_3f4e8e9210020e 22,29
+docs/member-guide.zh-CN.md
+  s_2f75bfd3e049f0::t_5e08e89c76e18a 9,17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "0aa76faae26f8451ed6c70fa0147867975d57793",
+  "prompts": {},
+  "sessions": {
+    "s_2f75bfd3e049f0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c2ff-22f2-7123-a418-c80eee7dba32",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "kudoushinichiYu <2449315540@qq.com>"
+    }
+  }
+}
